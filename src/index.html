@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PZ B42 Cell Cleaner</title>
+  <link rel="icon" type="image/png" href="favicon.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <aside id="sidebar">
+    <h1>PZ B42 Cell Cleaner</h1>
+
+    <section>
+      <h2>Selection Mode</h2>
+      <div class="btn-group">
+        <button id="btn-keep" class="mode-btn active">KEEP</button>
+        <button id="btn-purge" class="mode-btn">PURGE</button>
+      </div>
+      <p class="hint">Drag to select &middot; Shift = keep &middot; Ctrl = purge<br>Right-drag or Space+drag to pan<br>Double-click a cell to deselect</p>
+    </section>
+
+    <section>
+      <h2>Display</h2>
+      <label class="checkbox-label">
+        <input type="checkbox" id="chk-grid" checked> Cell grid
+      </label>
+      <label class="checkbox-label">
+        <input type="checkbox" id="chk-labels"> Cell labels
+      </label>
+      <label class="checkbox-label">
+        <input type="checkbox" id="chk-coords"> Cursor coordinates
+      </label>
+    </section>
+
+    <section>
+      <h2>Selections</h2>
+      <div class="btn-row">
+        <button id="btn-clear-keep">Clear keep</button>
+        <button id="btn-clear-purge">Clear purge</button>
+      </div>
+      <div class="btn-row">
+        <button id="btn-purge-all">Purge all</button>
+        <button id="btn-clear-all">Clear all</button>
+      </div>
+    </section>
+
+<section>
+      <h2>Export Script</h2>
+      <label for="sel-format">Format</label>
+      <select id="sel-format">
+        <option value="bash">Bash (.sh)</option>
+        <option value="powershell">PowerShell (.ps1)</option>
+        <option value="ftp">FTP commands (.txt)</option>
+      </select>
+
+      <label for="txt-path">Server data path</label>
+      <input type="text" id="txt-path" placeholder="/server/Zomboid/Saves/Sandbox/myworld">
+
+      <button id="btn-export" class="full-width accent">Export script</button>
+    </section>
+
+    <section class="legend">
+      <h2>Legend</h2>
+      <div class="legend-item"><span class="swatch keep"></span> Keep (preserved)</div>
+      <div class="legend-item"><span class="swatch purge"></span> Purge (deleted)</div>
+    </section>
+
+    <div id="status-bar"></div>
+    <div class="attribution">Map from <a href="https://b42map.com/" target="_blank" rel="noopener">b42map.com</a></div>
+  </aside>
+
+  <main id="map-container">
+    <canvas id="canvas"></canvas>
+    <div id="coords-display"></div>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
