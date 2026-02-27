@@ -28,6 +28,12 @@
   let mapImage = null;
   let mapLoaded = false;
 
+  const MAP_FILES = {
+    medium: 'map_medium.jpg',
+    high: 'map_high.jpg',
+    full: 'map_full.jpg',
+  };
+
   let isDragging = false;
   let isSelecting = false;
   let selectionStart = null;
@@ -79,7 +85,10 @@
   }
 
   // --- Map image setup ---
-  function loadMap() {
+  function loadMap(resolution) {
+    var file = MAP_FILES[resolution] || MAP_FILES.medium;
+    mapLoaded = false;
+    setStatus('Loading ' + file + '...');
     mapImage = new Image();
     mapImage.onload = function () {
       mapLoaded = true;
@@ -87,9 +96,9 @@
       setStatus('Map loaded — ' + mapImage.width + 'x' + mapImage.height);
     };
     mapImage.onerror = function () {
-      setStatus('Failed to load map.jpg — place it alongside index.html');
+      setStatus('Failed to load ' + file);
     };
-    mapImage.src = 'map.jpg';
+    mapImage.src = file;
   }
 
   // --- Rendering ---
@@ -623,9 +632,15 @@
     statusBar.textContent = msg;
   }
 
+  // --- Map resolution selector ---
+  var selMapRes = document.getElementById('sel-map-res');
+  selMapRes.addEventListener('change', function () {
+    loadMap(selMapRes.value);
+  });
+
   // --- Init ---
   window.addEventListener('resize', resizeCanvas);
   resizeCanvas();
-  loadMap();
+  loadMap(selMapRes.value);
   setStatus('Drag to select cells, right-drag to pan');
 })();

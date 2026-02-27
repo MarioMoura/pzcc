@@ -22,6 +22,12 @@
 
     <section>
       <h2>Display</h2>
+      <label for="sel-map-res">Map resolution</label>
+      <select id="sel-map-res">
+        <option value="medium" selected>Medium (4992 x 4032)</option>
+        <option value="high">High (9984 x 8064)</option>
+        <option value="full">Full (19968 x 16128)</option>
+      </select>
       <label class="checkbox-label">
         <input type="checkbox" id="chk-grid" checked> Cell grid
       </label>
@@ -68,6 +74,7 @@
 
     <div id="status-bar"></div>
     <div class="attribution">Map from <a href="https://b42map.com/" target="_blank" rel="noopener">b42map.com</a></div>
+    <div class="about-link"><a href="about.html">About — how it works</a></div>
   </aside>
 
   <main id="map-container">

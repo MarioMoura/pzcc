@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>About — PZ B42 Cell Cleaner</title>
+  <link rel="icon" type="image/png" href="favicon.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="page-body">
+  <div class="page-content">
+    <h1>PZ B42 Cell Cleaner — How It Works</h1>
+    <p><a href="index.html">&larr; Back to the tool</a></p>
+
+    <h2>PZ Map Hierarchy</h2>
+    <p>Project Zomboid organizes its map data in a three-level hierarchy:</p>
+    <table>
+      <thead>
+        <tr><th>Level</th><th>Description</th><th>Size (B42)</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><strong>Tile</strong></td><td>The smallest unit — a single square on the map</td><td>1 &times; 1</td></tr>
+        <tr><td><strong>Chunk</strong></td><td>A group of tiles, stored as one data block</td><td>8 &times; 8 tiles</td></tr>
+        <tr><td><strong>Cell</strong></td><td>A group of chunks, the top-level map division</td><td>32 &times; 32 chunks = 256 &times; 256 tiles</td></tr>
+      </tbody>
+    </table>
+    <p>Save files are organized by cell and chunk coordinates. The cell coordinate determines which directory the data lives in, and the chunk coordinate determines the individual file names within that directory.</p>
+
+    <h2>B41 vs B42 Comparison</h2>
+    <p>Build 42 changed the map grid dimensions from B41. This matters because cleanup scripts need the correct constants to calculate which files to delete.</p>
+    <table>
+      <thead>
+        <tr><th></th><th>B41</th><th>B42</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><strong>Cell size</strong></td><td>300 &times; 300 tiles</td><td>256 &times; 256 tiles</td></tr>
+        <tr><td><strong>Chunk size</strong></td><td>10 &times; 10 tiles</td><td>8 &times; 8 tiles</td></tr>
+        <tr><td><strong>Chunks per cell</strong></td><td>30 &times; 30</td><td>32 &times; 32</td></tr>
+      </tbody>
+    </table>
+    <p>The key difference: B42 uses powers of two (256, 8, 32) instead of B41's round-but-arbitrary numbers (300, 10, 30). This is why scripts written for B41 will calculate wrong chunk ranges for B42 saves.</p>
+
+    <h2>Coordinate Calculation</h2>
+    <p>To find which chunk files belong to a given cell, multiply the cell coordinate by the number of chunks per cell:</p>
+    <pre><code>chunk_start = cell_coord &times; chunks_per_cell
+chunk_end   = chunk_start + chunks_per_cell - 1</code></pre>
+
+    <h3>Worked example: Cell 6, 57</h3>
+    <table>
+      <thead>
+        <tr><th></th><th>X (cell 6)</th><th>Y (cell 57)</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><strong>Chunk start</strong></td><td>6 &times; 32 = <code>192</code></td><td>57 &times; 32 = <code>1824</code></td></tr>
+        <tr><td><strong>Chunk end</strong></td><td>192 + 31 = <code>223</code></td><td>1824 + 31 = <code>1855</code></td></tr>
+      </tbody>
+    </table>
+    <p>So cell (6, 57) contains all chunks where X ranges from 192–223 and Y ranges from 1824–1855. Any file in the save directory with chunk coordinates in that range belongs to this cell.</p>
+
+    <h2>Save File Structure</h2>
+    <p>A PZ save directory contains several subdirectories. Each uses either cell or chunk coordinates in its file names:</p>
+    <table>
+      <thead>
+        <tr><th>Directory</th><th>Coordinate type</th><th>File pattern</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>map_*</code></td><td>Chunk</td><td><code>map_192_1824.bin</code></td></tr>
+        <tr><td><code>chunkdata_*</code></td><td>Chunk</td><td><code>chunkdata_192_1824.bin</code></td></tr>
+        <tr><td><code>zpop_*</code></td><td>Cell</td><td><code>zpop_6_57.bin</code></td></tr>
+      </tbody>
+    </table>
+    <p>For chunk-based directories, the cleanup script must expand the cell coordinate into the full range of chunk coordinates and delete every matching file. For cell-based directories, it can delete by cell coordinate directly.</p>
+
+    <p class="back-link"><a href="index.html">&larr; Back to the tool</a></p>
+  </div>
+</body>
+</html>
