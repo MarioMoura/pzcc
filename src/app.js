@@ -478,6 +478,22 @@
     setStatus('Exported ' + cellsToDelete.length + ' cells — ' + filename);
   });
 
+  document.getElementById('btn-copy-cells').addEventListener('click', function () {
+    var cells = getCellsToDelete();
+    if (cells.length === 0) {
+      setStatus('Nothing to copy — select some cells first');
+      return;
+    }
+    var coords = cells.map(function (c) { return c.cx + ',' + c.cy; }).join(' ');
+    var basePath = document.getElementById('txt-path').value.trim() || '/path/to/save';
+    var cmd = './pzcc.sh --path ' + basePath + ' --purge ' + coords;
+    navigator.clipboard.writeText(cmd).then(function () {
+      setStatus('Copied command for ' + cells.length + ' cells');
+    }, function () {
+      setStatus('Copy failed — check browser permissions');
+    });
+  });
+
   function getCellsToDelete() {
     return Array.from(selections.purge).map(parseCellKey);
   }

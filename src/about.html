@@ -144,6 +144,46 @@
       <p>For <span class="coord-tag coord-tag--chunk">chunk</span> directories, the script expands the cell into the full 32&times;32 range and deletes every match. For <span class="coord-tag coord-tag--cell">cell</span> directories it deletes by cell coordinate directly.</p>
     </article>
 
+    <article class="page-section fade-in" style="--delay: 4">
+      <h2><span class="section-num">05</span> CLI Script</h2>
+      <p>Prefer the command line? <code>pzcc.sh</code> runs the cleanup directly on your server &mdash; no browser needed.</p>
+
+      <p><a href="pzcc.sh" download class="download-btn">Download pzcc.sh</a></p>
+
+      <h3>Usage</h3>
+      <pre class="terminal"><code><span class="terminal__prompt">$</span> chmod +x pzcc.sh
+<span class="terminal__prompt">$</span> ./pzcc.sh --path /server/Zomboid/Saves/Sandbox/myworld --purge 6,57 8,60</code></pre>
+
+      <h3>Options</h3>
+      <table class="file-table">
+        <thead>
+          <tr><th>Flag</th><th>Description</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>--path &lt;dir&gt;</code></td><td>Path to the PZ server save directory</td></tr>
+          <tr><td><code>--purge &lt;cx,cy&gt;</code></td><td>Cell coordinate to purge (repeatable)</td></tr>
+          <tr><td><code>--dry-run</code></td><td>Show what would be deleted without deleting anything</td></tr>
+          <tr><td><code>-h, --help</code></td><td>Show help</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Dry run first</h3>
+      <p>Always preview before deleting. The <code>--dry-run</code> flag lists every file that would be removed:</p>
+      <pre class="terminal"><code><span class="terminal__prompt">$</span> ./pzcc.sh --path /server/saves --purge 6,57 --dry-run
+<span class="terminal__dim">=== DRY RUN — no files will be deleted ===</span>
+<span class="terminal__dim">Base path: /server/saves</span>
+<span class="terminal__dim">Cells to purge: 6,57</span>
+<span class="terminal__dim">--- Cell 6,57 ---</span>
+<span class="terminal__dim">[dry-run] rm /server/saves/chunkdata/chunkdata_6_57.bin</span>
+<span class="terminal__dim">[dry-run] rm /server/saves/zpop/zpop_6_57.bin</span>
+<span class="terminal__dim">[dry-run] rm /server/saves/map/192/1824.bin</span>
+<span class="terminal__dim">...</span>
+<span class="terminal__dim">Would delete 7 files. Run without --dry-run to execute.</span></code></pre>
+
+      <h3>With the web tool</h3>
+      <p>Select cells in the <a href="index.html">map tool</a>, then click <strong>Copy cell coords</strong> to get a ready-to-paste command.</p>
+    </article>
+
     <nav class="page-nav page-nav--bottom">
       <a href="index.html">&larr; Back to the tool</a>
     </nav>
