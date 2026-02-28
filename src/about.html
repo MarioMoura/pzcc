@@ -5,73 +5,149 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>About — PZ B42 Cell Cleaner</title>
   <link rel="icon" type="image/png" href="favicon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body class="page-body">
   <div class="page-content">
-    <h1>PZ B42 Cell Cleaner — How It Works</h1>
-    <p><a href="index.html">&larr; Back to the tool</a></p>
 
-    <h2>PZ Map Hierarchy</h2>
-    <p>Project Zomboid organizes its map data in a three-level hierarchy:</p>
-    <table>
-      <thead>
-        <tr><th>Level</th><th>Description</th><th>Size (B42)</th></tr>
-      </thead>
-      <tbody>
-        <tr><td><strong>Tile</strong></td><td>The smallest unit — a single square on the map</td><td>1 &times; 1</td></tr>
-        <tr><td><strong>Chunk</strong></td><td>A group of tiles, stored as one data block</td><td>8 &times; 8 tiles</td></tr>
-        <tr><td><strong>Cell</strong></td><td>A group of chunks, the top-level map division</td><td>32 &times; 32 chunks = 256 &times; 256 tiles</td></tr>
-      </tbody>
-    </table>
-    <p>Save files are organized by cell and chunk coordinates. The cell coordinate determines which directory the data lives in, and the chunk coordinate determines the individual file names within that directory.</p>
+    <nav class="page-nav">
+      <a href="index.html">&larr; Back to the tool</a>
+    </nav>
 
-    <h2>B41 vs B42 Comparison</h2>
-    <p>Build 42 changed the map grid dimensions from B41. This matters because cleanup scripts need the correct constants to calculate which files to delete.</p>
-    <table>
-      <thead>
-        <tr><th></th><th>B41</th><th>B42</th></tr>
-      </thead>
-      <tbody>
-        <tr><td><strong>Cell size</strong></td><td>300 &times; 300 tiles</td><td>256 &times; 256 tiles</td></tr>
-        <tr><td><strong>Chunk size</strong></td><td>10 &times; 10 tiles</td><td>8 &times; 8 tiles</td></tr>
-        <tr><td><strong>Chunks per cell</strong></td><td>30 &times; 30</td><td>32 &times; 32</td></tr>
-      </tbody>
-    </table>
-    <p>The key difference: B42 uses powers of two (256, 8, 32) instead of B41's round-but-arbitrary numbers (300, 10, 30). This is why scripts written for B41 will calculate wrong chunk ranges for B42 saves.</p>
+    <header class="page-header">
+      <span class="page-header__label">Technical Reference</span>
+      <h1 class="page-header__title">How It Works</h1>
+      <p class="page-header__sub">Map coordinates, cell math, and save file structure for PZ Build 42.</p>
+    </header>
 
-    <h2>Coordinate Calculation</h2>
-    <p>To find which chunk files belong to a given cell, multiply the cell coordinate by the number of chunks per cell:</p>
-    <pre><code>chunk_start = cell_coord &times; chunks_per_cell
-chunk_end   = chunk_start + chunks_per_cell - 1</code></pre>
+    <article class="page-section fade-in" style="--delay: 0">
+      <h2><span class="section-num">01</span> Map Hierarchy</h2>
+      <p>Project Zomboid organizes its world in three nested levels. Everything scales up from a single tile:</p>
 
-    <h3>Worked example: Cell 6, 57</h3>
-    <table>
-      <thead>
-        <tr><th></th><th>X (cell 6)</th><th>Y (cell 57)</th></tr>
-      </thead>
-      <tbody>
-        <tr><td><strong>Chunk start</strong></td><td>6 &times; 32 = <code>192</code></td><td>57 &times; 32 = <code>1824</code></td></tr>
-        <tr><td><strong>Chunk end</strong></td><td>192 + 31 = <code>223</code></td><td>1824 + 31 = <code>1855</code></td></tr>
-      </tbody>
-    </table>
-    <p>So cell (6, 57) contains all chunks where X ranges from 192–223 and Y ranges from 1824–1855. Any file in the save directory with chunk coordinates in that range belongs to this cell.</p>
+      <div class="hierarchy-flow">
+        <div class="hierarchy-node">
+          <span class="hierarchy-node__size">1 &times; 1</span>
+          <strong class="hierarchy-node__name">Tile</strong>
+          <span class="hierarchy-node__desc">Smallest unit</span>
+        </div>
+        <div class="hierarchy-arrow">
+          <span>&times; 8</span>
+        </div>
+        <div class="hierarchy-node">
+          <span class="hierarchy-node__size">8 &times; 8 tiles</span>
+          <strong class="hierarchy-node__name">Chunk</strong>
+          <span class="hierarchy-node__desc">One data block</span>
+        </div>
+        <div class="hierarchy-arrow">
+          <span>&times; 32</span>
+        </div>
+        <div class="hierarchy-node">
+          <span class="hierarchy-node__size">256 &times; 256 tiles</span>
+          <strong class="hierarchy-node__name">Cell</strong>
+          <span class="hierarchy-node__desc">Top-level division</span>
+        </div>
+      </div>
 
-    <h2>Save File Structure</h2>
-    <p>A PZ save directory contains several subdirectories. Each uses either cell or chunk coordinates in its file names:</p>
-    <table>
-      <thead>
-        <tr><th>Directory</th><th>Coordinate type</th><th>File pattern</th></tr>
-      </thead>
-      <tbody>
-        <tr><td><code>map_*</code></td><td>Chunk</td><td><code>map_192_1824.bin</code></td></tr>
-        <tr><td><code>chunkdata_*</code></td><td>Chunk</td><td><code>chunkdata_192_1824.bin</code></td></tr>
-        <tr><td><code>zpop_*</code></td><td>Cell</td><td><code>zpop_6_57.bin</code></td></tr>
-      </tbody>
-    </table>
-    <p>For chunk-based directories, the cleanup script must expand the cell coordinate into the full range of chunk coordinates and delete every matching file. For cell-based directories, it can delete by cell coordinate directly.</p>
+      <p>Save files use <strong>cell</strong> coordinates for directories and <strong>chunk</strong> coordinates for individual file names.</p>
+    </article>
 
-    <p class="back-link"><a href="index.html">&larr; Back to the tool</a></p>
+    <article class="page-section fade-in" style="--delay: 1">
+      <h2><span class="section-num">02</span> B41 vs B42</h2>
+      <p>Build 42 changed the grid constants. Scripts written for B41 will calculate wrong chunk ranges on B42 saves.</p>
+
+      <div class="version-compare">
+        <div class="version-compare__col version-compare__col--old">
+          <div class="version-compare__badge">B41</div>
+          <dl>
+            <dt>Cell size</dt>
+            <dd>300 &times; 300 tiles</dd>
+            <dt>Chunk size</dt>
+            <dd>10 &times; 10 tiles</dd>
+            <dt>Chunks / cell</dt>
+            <dd>30 &times; 30</dd>
+          </dl>
+          <span class="version-compare__note">Round numbers, arbitrary</span>
+        </div>
+        <div class="version-compare__vs">vs</div>
+        <div class="version-compare__col version-compare__col--new">
+          <div class="version-compare__badge">B42</div>
+          <dl>
+            <dt>Cell size</dt>
+            <dd>256 &times; 256 tiles</dd>
+            <dt>Chunk size</dt>
+            <dd>8 &times; 8 tiles</dd>
+            <dt>Chunks / cell</dt>
+            <dd>32 &times; 32</dd>
+          </dl>
+          <span class="version-compare__note">Powers of two</span>
+        </div>
+      </div>
+    </article>
+
+    <article class="page-section fade-in" style="--delay: 2">
+      <h2><span class="section-num">03</span> Coordinate Calculation</h2>
+      <p>To find which chunk files belong to a cell, multiply the cell coordinate by chunks-per-cell:</p>
+
+      <pre class="terminal"><code><span class="terminal__prompt">$</span> chunk_start = cell_coord &times; 32
+<span class="terminal__prompt">$</span> chunk_end   = chunk_start + 31</code></pre>
+
+      <h3>Worked example &mdash; Cell (6, 57)</h3>
+
+      <div class="calc-grid">
+        <div class="calc-grid__axis">
+          <div class="calc-grid__label">X &nbsp;(cell 6)</div>
+          <div class="calc-grid__step">6 &times; 32 = <strong>192</strong></div>
+          <div class="calc-grid__step">192 + 31 = <strong>223</strong></div>
+          <div class="calc-grid__range">chunks 192 &ndash; 223</div>
+        </div>
+        <div class="calc-grid__axis">
+          <div class="calc-grid__label">Y &nbsp;(cell 57)</div>
+          <div class="calc-grid__step">57 &times; 32 = <strong>1824</strong></div>
+          <div class="calc-grid__step">1824 + 31 = <strong>1855</strong></div>
+          <div class="calc-grid__range">chunks 1824 &ndash; 1855</div>
+        </div>
+      </div>
+
+      <p>Any save file with chunk coordinates in those ranges belongs to cell (6,&nbsp;57).</p>
+    </article>
+
+    <article class="page-section fade-in" style="--delay: 3">
+      <h2><span class="section-num">04</span> Save File Structure</h2>
+      <p>The cleanup script needs to know which directories use cell vs chunk coordinates:</p>
+
+      <table class="file-table">
+        <thead>
+          <tr><th>Directory</th><th>Coords</th><th>Example file</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>map_*</code></td>
+            <td><span class="coord-tag coord-tag--chunk">chunk</span></td>
+            <td><code>map_192_1824.bin</code></td>
+          </tr>
+          <tr>
+            <td><code>chunkdata_*</code></td>
+            <td><span class="coord-tag coord-tag--chunk">chunk</span></td>
+            <td><code>chunkdata_192_1824.bin</code></td>
+          </tr>
+          <tr>
+            <td><code>zpop_*</code></td>
+            <td><span class="coord-tag coord-tag--cell">cell</span></td>
+            <td><code>zpop_6_57.bin</code></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p>For <span class="coord-tag coord-tag--chunk">chunk</span> directories, the script expands the cell into the full 32&times;32 range and deletes every match. For <span class="coord-tag coord-tag--cell">cell</span> directories it deletes by cell coordinate directly.</p>
+    </article>
+
+    <nav class="page-nav page-nav--bottom">
+      <a href="index.html">&larr; Back to the tool</a>
+    </nav>
+
   </div>
 </body>
 </html>
