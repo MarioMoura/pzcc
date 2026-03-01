@@ -434,6 +434,13 @@
     render();
     setStatus('Cleared all selections');
   });
+  document.getElementById('btn-invert').addEventListener('click', function () {
+    var oldKeep = new Set(selections.keep);
+    selections.keep = new Set(selections.purge);
+    selections.purge = oldKeep;
+    render();
+    setStatus('Inverted — ' + selections.keep.size + ' keep, ' + selections.purge.size + ' purge');
+  });
   document.getElementById('btn-purge-all').addEventListener('click', function () {
     for (let cx = 0; cx < CELLS_X; cx++) {
       for (let cy = 0; cy < CELLS_Y; cy++) {
@@ -448,7 +455,7 @@
   });
 
   // --- Script Generation ---
-  document.getElementById('btn-export').addEventListener('click', function () {
+  document.getElementById('btn-export').addEventListener('click', async function () {
     const format = document.getElementById('sel-format').value;
     const basePath = document.getElementById('txt-path').value.trim() || '.';
 
@@ -460,13 +467,9 @@
 
     let script, filename;
     switch (format) {
-      case 'bash':
-        script = generateBash(cellsToDelete, basePath);
-        filename = 'pz-cleanup.sh';
-        break;
-      case 'powershell':
-        script = generatePowershell(cellsToDelete, basePath);
-        filename = 'pz-cleanup.ps1';
+      case 'python':
+        script = await generatePython(cellsToDelete, basePath);
+        filename = 'pz-cleanup.py';
         break;
       case 'ftp':
         script = generateFTP(cellsToDelete, basePath);
@@ -507,87 +510,21 @@
   //   map/{chunkX}/{chunkY}.bin         (chunk coords, subdirectories)
   //   isoregiondata/datachunk_CHX_CHY.bin (chunk coords)
 
-  function generateBash(cells, basePath) {
-    const lines = [
-      '#!/bin/bash',
-      '# PZ B42 Cell Cleaner — generated ' + new Date().toISOString(),
-      '# Cells to delete: ' + cells.length,
-      '',
-      'BASE="' + basePath + '"',
-      '',
-    ];
+  async function generatePython(cells, basePath) {
+    const response = await fetch('pz-cleanup.py');
+    let template = await response.text();
 
-    // Cell-level files
-    lines.push('# --- Delete cell-level files ---');
-    for (const { cx, cy } of cells) {
-      lines.push('rm -f "$BASE/chunkdata/chunkdata_' + cx + '_' + cy + '.bin"');
-      lines.push('rm -f "$BASE/zpop/zpop_' + cx + '_' + cy + '.bin"');
-      lines.push('rm -f "$BASE/apop/apop_' + cx + '_' + cy + '.bin"');
-      lines.push('rm -f "$BASE/metagrid/metacell_' + cx + '_' + cy + '.bin"');
-    }
-    lines.push('');
+    const cellsList = cells.map(function (c) { return '    (' + c.cx + ', ' + c.cy + ')'; }).join(',\n');
+    template = template.replace(
+      /^CELLS = \[\]  # PZCC_INJECT_CELLS$/m,
+      'CELLS = [\n' + cellsList + ',\n]'
+    );
+    template = template.replace(
+      /^DEFAULT_PATH = "."  # PZCC_INJECT_PATH$/m,
+      'DEFAULT_PATH = ' + JSON.stringify(basePath)
+    );
 
-    // Chunk-level files (32x32 chunks per cell in B42)
-    lines.push('# --- Delete chunk-level files ---');
-    for (const { cx, cy } of cells) {
-      const chxStart = cx * CHUNKS_PER_CELL;
-      const chyStart = cy * CHUNKS_PER_CELL;
-      const chxEnd = chxStart + CHUNKS_PER_CELL - 1;
-      const chyEnd = chyStart + CHUNKS_PER_CELL - 1;
-      lines.push('# Cell ' + cx + ',' + cy);
-      lines.push('for chx in $(seq ' + chxStart + ' ' + chxEnd + '); do');
-      lines.push('  for chy in $(seq ' + chyStart + ' ' + chyEnd + '); do');
-      lines.push('    rm -f "$BASE/map/${chx}/${chy}.bin"');
-      lines.push('    rm -f "$BASE/isoregiondata/datachunk_${chx}_${chy}.bin"');
-      lines.push('  done');
-      lines.push('  # Remove chunk directory if empty');
-      lines.push('  rmdir "$BASE/map/${chx}" 2>/dev/null');
-      lines.push('done');
-    }
-    lines.push('');
-    lines.push('echo "Cleanup complete."');
-
-    return lines.join('\n');
-  }
-
-  function generatePowershell(cells, basePath) {
-    const lines = [
-      '# PZ B42 Cell Cleaner — generated ' + new Date().toISOString(),
-      '# Cells to delete: ' + cells.length,
-      '',
-      '$Base = "' + basePath.replace(/\//g, '\\') + '"',
-      '',
-    ];
-
-    // Cell-level files
-    lines.push('# --- Delete cell-level files ---');
-    for (const { cx, cy } of cells) {
-      lines.push('Remove-Item -Path "$Base\\chunkdata\\chunkdata_' + cx + '_' + cy + '.bin" -ErrorAction SilentlyContinue');
-      lines.push('Remove-Item -Path "$Base\\zpop\\zpop_' + cx + '_' + cy + '.bin" -ErrorAction SilentlyContinue');
-      lines.push('Remove-Item -Path "$Base\\apop\\apop_' + cx + '_' + cy + '.bin" -ErrorAction SilentlyContinue');
-      lines.push('Remove-Item -Path "$Base\\metagrid\\metacell_' + cx + '_' + cy + '.bin" -ErrorAction SilentlyContinue');
-    }
-    lines.push('');
-
-    // Chunk-level files
-    lines.push('# --- Delete chunk-level files ---');
-    for (const { cx, cy } of cells) {
-      const chxStart = cx * CHUNKS_PER_CELL;
-      const chyStart = cy * CHUNKS_PER_CELL;
-      const chxEnd = chxStart + CHUNKS_PER_CELL - 1;
-      const chyEnd = chyStart + CHUNKS_PER_CELL - 1;
-      lines.push('# Cell ' + cx + ',' + cy);
-      lines.push('foreach ($chx in ' + chxStart + '..' + chxEnd + ') {');
-      lines.push('  foreach ($chy in ' + chyStart + '..' + chyEnd + ') {');
-      lines.push('    Remove-Item -Path "$Base\\map\\$chx\\$chy.bin" -ErrorAction SilentlyContinue');
-      lines.push('    Remove-Item -Path "$Base\\isoregiondata\\datachunk_$($chx)_$($chy).bin" -ErrorAction SilentlyContinue');
-      lines.push('  }');
-      lines.push('}');
-    }
-    lines.push('');
-    lines.push('Write-Host "Cleanup complete."');
-
-    return lines.join('\r\n');
+    return template;
   }
 
   function generateFTP(cells, basePath) {
