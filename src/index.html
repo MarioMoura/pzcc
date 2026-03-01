@@ -15,6 +15,7 @@
     <div class="sidebar-header">
       <span class="sidebar-header__label">B42</span>
       <h1>Cell Cleaner</h1>
+      <button id="btn-help" title="Help">?</button>
     </div>
 
     <section>
@@ -89,6 +90,20 @@
     <canvas id="canvas"></canvas>
     <div id="coords-display"></div>
   </main>
+
+  <div id="walkthrough" class="walkthrough" hidden>
+    <div class="walkthrough__backdrop"></div>
+    <div class="walkthrough__spotlight"></div>
+    <div class="walkthrough__card">
+      <div class="walkthrough__step">1 / 4</div>
+      <h3 class="walkthrough__title"></h3>
+      <p class="walkthrough__text"></p>
+      <div class="walkthrough__actions">
+        <button class="walkthrough__skip">Skip</button>
+        <button class="walkthrough__next accent">Next</button>
+      </div>
+    </div>
+  </div>
 
   <script src="app.js"></script>
 </body>

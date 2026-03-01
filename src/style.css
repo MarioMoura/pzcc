@@ -878,3 +878,120 @@ label:not(.checkbox-label) {
 .about-link a:hover {
   color: #e94560;
 }
+
+/* --- Help button --- */
+
+#btn-help {
+  margin-left: auto;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Chakra Petch', system-ui, sans-serif;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #5a6a7e;
+  background: transparent;
+  border: 1px solid #1e2d4a;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+#btn-help:hover {
+  color: #e94560;
+  border-color: #e94560;
+}
+
+/* --- Walkthrough overlay --- */
+
+.walkthrough {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+}
+
+.walkthrough__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  pointer-events: auto;
+}
+
+.walkthrough__spotlight {
+  position: absolute;
+  border-radius: 2px;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.65);
+  pointer-events: none;
+  transition: top 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+              left 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+              width 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+              height 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.walkthrough__card {
+  position: absolute;
+  background: #151d30;
+  border: 1px solid #1e2d4a;
+  padding: 18px 20px;
+  max-width: 320px;
+  pointer-events: auto;
+  opacity: 1;
+  transition: opacity 0.2s ease-out;
+}
+
+.walkthrough__card.fade-out {
+  opacity: 0;
+}
+
+.walkthrough__step {
+  font-family: 'Chakra Petch', system-ui, sans-serif;
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #e94560;
+  margin-bottom: 6px;
+}
+
+.walkthrough__title {
+  font-family: 'Chakra Petch', system-ui, sans-serif;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #e2e6ec;
+  margin-bottom: 8px;
+}
+
+.walkthrough__text {
+  font-size: 0.8rem;
+  color: #8898aa;
+  line-height: 1.55;
+  margin-bottom: 16px;
+}
+
+.walkthrough__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.walkthrough__skip {
+  background: transparent;
+  border: 1px solid transparent;
+  color: #5a6a7e;
+  font-size: 0.72rem;
+  padding: 6px 12px;
+}
+
+.walkthrough__skip:hover {
+  color: #8898aa;
+  background: transparent;
+  border-color: transparent;
+}
+
+.walkthrough__next {
+  font-size: 0.72rem;
+  padding: 6px 16px;
+}

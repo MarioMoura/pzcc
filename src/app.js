@@ -577,11 +577,10 @@
       const chxEnd = chxStart + CHUNKS_PER_CELL - 1;
       const chyEnd = chyStart + CHUNKS_PER_CELL - 1;
       lines.push('# Cell ' + cx + ',' + cy);
-      lines.push(chxStart + '..' + chxEnd + ' | ForEach-Object {');
-      lines.push('  $chx = $_');
-      lines.push('  ' + chyStart + '..' + chyEnd + ' | ForEach-Object {');
-      lines.push('    Remove-Item -Path "$Base\\map\\$chx\\$_.bin" -ErrorAction SilentlyContinue');
-      lines.push('    Remove-Item -Path "$Base\\isoregiondata\\datachunk_${chx}_${_}.bin" -ErrorAction SilentlyContinue');
+      lines.push('foreach ($chx in ' + chxStart + '..' + chxEnd + ') {');
+      lines.push('  foreach ($chy in ' + chyStart + '..' + chyEnd + ') {');
+      lines.push('    Remove-Item -Path "$Base\\map\\$chx\\$chy.bin" -ErrorAction SilentlyContinue');
+      lines.push('    Remove-Item -Path "$Base\\isoregiondata\\datachunk_$($chx)_$($chy).bin" -ErrorAction SilentlyContinue');
       lines.push('  }');
       lines.push('}');
     }
@@ -654,9 +653,152 @@
     loadMap(selMapRes.value);
   });
 
+  // --- Walkthrough ---
+  var walkthroughSteps = [
+    {
+      target: '.btn-group',
+      title: 'Selection Mode',
+      text: 'Choose KEEP to mark cells you want to preserve, or PURGE to mark cells for deletion.',
+    },
+    {
+      target: '#map-container',
+      title: 'Map Interaction',
+      text: 'Drag to select cells. Right-drag or Space+drag to pan. Scroll to zoom. Double-click to deselect.',
+    },
+    {
+      target: '#sel-format',
+      title: 'Export Script',
+      text: 'Generate a ready-to-run cleanup script with all delete commands baked in. Pick a format, set your server save path, and export.',
+      targetEnd: '#btn-export',
+    },
+    {
+      target: '#btn-copy-cells',
+      title: 'CLI Alternative',
+      text: 'Prefer the command line? Copy the cell coordinates and download pzcc.sh — a reusable script you feed coords to instead of a one-off export.',
+      targetEnd: '.btn-download',
+    },
+  ];
+
+  var wtEl = document.getElementById('walkthrough');
+  var wtSpotlight = wtEl.querySelector('.walkthrough__spotlight');
+  var wtCard = wtEl.querySelector('.walkthrough__card');
+  var wtStep = wtEl.querySelector('.walkthrough__step');
+  var wtTitle = wtEl.querySelector('.walkthrough__title');
+  var wtText = wtEl.querySelector('.walkthrough__text');
+  var wtNext = wtEl.querySelector('.walkthrough__next');
+  var wtSkip = wtEl.querySelector('.walkthrough__skip');
+  var wtCurrent = 0;
+
+  function getStepBounds(step) {
+    var el = document.querySelector(step.target);
+    if (!el) return null;
+    el.scrollIntoView({ block: 'nearest', behavior: 'instant' });
+    var rect = el.getBoundingClientRect();
+    if (step.targetEnd) {
+      var el2 = document.querySelector(step.targetEnd);
+      if (el2) {
+        var rect2 = el2.getBoundingClientRect();
+        return {
+          top: Math.min(rect.top, rect2.top),
+          left: Math.min(rect.left, rect2.left),
+          right: Math.max(rect.right, rect2.right),
+          bottom: Math.max(rect.bottom, rect2.bottom),
+          width: Math.max(rect.right, rect2.right) - Math.min(rect.left, rect2.left),
+          height: Math.max(rect.bottom, rect2.bottom) - Math.min(rect.top, rect2.top),
+        };
+      }
+    }
+    return rect;
+  }
+
+  function positionStep(index) {
+    var step = walkthroughSteps[index];
+    var bounds = getStepBounds(step);
+    if (!bounds) return;
+
+    var pad = 6;
+    wtSpotlight.style.top = (bounds.top - pad) + 'px';
+    wtSpotlight.style.left = (bounds.left - pad) + 'px';
+    wtSpotlight.style.width = (bounds.width + pad * 2) + 'px';
+    wtSpotlight.style.height = (bounds.height + pad * 2) + 'px';
+
+    wtStep.textContent = (index + 1) + ' / ' + walkthroughSteps.length;
+    wtTitle.textContent = step.title;
+    wtText.textContent = step.text;
+    wtNext.textContent = index === walkthroughSteps.length - 1 ? 'Got it' : 'Next';
+
+    // Position card next to spotlight
+    var cardW = 320;
+    var cardH = wtCard.offsetHeight || 180;
+    var gap = 14;
+
+    // Prefer right of spotlight; fall back to below
+    var cx = bounds.right + gap;
+    var cy = bounds.top;
+
+    if (cx + cardW > window.innerWidth - 12) {
+      cx = bounds.left - cardW - gap;
+    }
+    if (cx < 12) {
+      cx = bounds.left;
+      cy = bounds.bottom + gap;
+    }
+    if (cy + cardH > window.innerHeight - 12) {
+      cy = window.innerHeight - cardH - 12;
+    }
+    if (cy < 12) cy = 12;
+
+    wtCard.style.left = cx + 'px';
+    wtCard.style.top = cy + 'px';
+  }
+
+  function showWalkthrough() {
+    wtCurrent = 0;
+    wtEl.hidden = false;
+    wtCard.classList.remove('fade-out');
+    positionStep(0);
+  }
+
+  function hideWalkthrough() {
+    wtEl.hidden = true;
+    localStorage.setItem('pzcc-walkthrough-seen', '1');
+  }
+
+  wtNext.addEventListener('click', function () {
+    if (wtCurrent >= walkthroughSteps.length - 1) {
+      hideWalkthrough();
+      return;
+    }
+    wtCard.classList.add('fade-out');
+    setTimeout(function () {
+      wtCurrent++;
+      positionStep(wtCurrent);
+      wtCard.classList.remove('fade-out');
+    }, 180);
+  });
+
+  wtSkip.addEventListener('click', hideWalkthrough);
+
+  wtEl.querySelector('.walkthrough__backdrop').addEventListener('click', hideWalkthrough);
+
+  document.getElementById('btn-help').addEventListener('click', showWalkthrough);
+
+  window.addEventListener('resize', function () {
+    if (!wtEl.hidden) positionStep(wtCurrent);
+  });
+
   // --- Init ---
   window.addEventListener('resize', resizeCanvas);
   resizeCanvas();
   loadMap(selMapRes.value);
   setStatus('Drag to select cells, right-drag to pan');
+
+  // Auto-show walkthrough on first visit, after map loads
+  if (!localStorage.getItem('pzcc-walkthrough-seen')) {
+    var origOnload = mapImage.onload;
+    mapImage.onload = function () {
+      origOnload.call(this);
+      setTimeout(showWalkthrough, 400);
+    };
+  }
 })();
