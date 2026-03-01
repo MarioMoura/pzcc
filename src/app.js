@@ -663,7 +663,7 @@
     {
       target: '#map-container',
       title: 'Map Interaction',
-      text: 'Drag to select cells. Right-drag or Space+drag to pan. Scroll to zoom. Double-click to deselect.',
+      text: 'Drag to select cells. Hold Shift to keep or Ctrl to purge while clicking or dragging. Right-drag or Space+drag to pan. Scroll to zoom. Double-click to deselect.',
     },
     {
       target: '#sel-format',
