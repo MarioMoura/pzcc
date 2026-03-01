@@ -238,10 +238,15 @@ button.accent:active {
 .btn-row {
   display: flex;
   gap: 6px;
+  flex-wrap: wrap;
 }
 
 .btn-row button {
   flex: 1;
+}
+
+.preset-row button {
+  flex: 0 1 auto;
 }
 
 /* --- Form controls --- */
