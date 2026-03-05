@@ -23,6 +23,7 @@
 
   const camera = { x: WORLD_MAX_X / 2, y: WORLD_MAX_Y / 2, zoom: 0.06 };
   const selections = { keep: new Set(), purge: new Set() };
+  const populatedCells = new Set();
   let activeMode = 'keep'; // 'keep' or 'purge'
 
   let mapImage = null;
@@ -53,6 +54,10 @@
   const statusBar = document.getElementById('status-bar');
   const selectionBar = document.getElementById('selection-bar');
   const selectionSummary = document.getElementById('selection-summary');
+  const btnLoadSave = document.getElementById('btn-load-save');
+  const loadSaveStatus = document.getElementById('load-save-status');
+  const chkLegend = document.getElementById('chk-legend');
+  const mapLegend = document.getElementById('map-legend');
 
   // --- Coordinate transforms ---
   function worldToScreen(wx, wy) {
@@ -116,6 +121,9 @@
       ctx.drawImage(mapImage, tl.x, tl.y, br.x - tl.x, br.y - tl.y);
     }
 
+    // Draw populated cells (under selections)
+    drawPopulated();
+
     // Draw selections
     drawSelections();
 
@@ -127,6 +135,13 @@
     // Draw in-progress selection rectangle
     if (isSelecting && selectionStart && selectionEnd) {
       drawSelectionPreview();
+    }
+  }
+
+  function drawPopulated() {
+    for (const key of populatedCells) {
+      const { cx, cy } = parseCellKey(key);
+      drawCellOverlay(cx, cy, 'rgba(255, 193, 7, 0.2)', 'rgba(255, 193, 7, 0.5)');
     }
   }
 
@@ -785,6 +800,75 @@
     }, function () {
       setStatus('Copy failed — check browser permissions');
     });
+  });
+
+  // --- Load save directory ---
+  // Uses showDirectoryPicker when available (Chromium), falls back to
+  // a file input selecting the chunkdata/ subfolder directly (all browsers).
+  var dirInput = document.createElement('input');
+  dirInput.type = 'file';
+  dirInput.webkitdirectory = true;
+  dirInput.style.display = 'none';
+  document.body.appendChild(dirInput);
+
+  function applyPopulatedCells() {
+    loadSaveStatus.textContent = populatedCells.size + ' populated cells found';
+    setStatus('Loaded ' + populatedCells.size + ' populated cells from save');
+    chkLegend.checked = true;
+    mapLegend.hidden = false;
+    render();
+  }
+
+  async function loadViaDirectoryPicker() {
+    var dirHandle = await window.showDirectoryPicker({ mode: 'read' });
+
+    // Try to find the chunkdata subdirectory
+    var chunkdataHandle;
+    try {
+      chunkdataHandle = await dirHandle.getDirectoryHandle('chunkdata');
+    } catch (e) {
+      loadSaveStatus.textContent = 'No chunkdata/ folder found';
+      return;
+    }
+
+    populatedCells.clear();
+    var pattern = /^chunkdata_(-?\d+)_(-?\d+)\.bin$/;
+
+    for await (var entry of chunkdataHandle.values()) {
+      if (entry.kind !== 'file') continue;
+      var match = entry.name.match(pattern);
+      if (match) {
+        populatedCells.add(cellKey(parseInt(match[1]), parseInt(match[2])));
+      }
+    }
+    applyPopulatedCells();
+  }
+
+  dirInput.addEventListener('change', function () {
+    if (!dirInput.files || dirInput.files.length === 0) return;
+    populatedCells.clear();
+    var pattern = /^chunkdata_(-?\d+)_(-?\d+)\.bin$/;
+    for (var i = 0; i < dirInput.files.length; i++) {
+      var match = dirInput.files[i].name.match(pattern);
+      if (match) {
+        populatedCells.add(cellKey(parseInt(match[1]), parseInt(match[2])));
+      }
+    }
+    if (populatedCells.size === 0) {
+      loadSaveStatus.textContent = 'No chunkdata files found — select the chunkdata/ folder';
+      return;
+    }
+    applyPopulatedCells();
+    dirInput.value = '';
+  });
+
+  btnLoadSave.addEventListener('click', function () {
+    dirInput.click();
+  });
+
+  // --- Legend toggle ---
+  chkLegend.addEventListener('change', function () {
+    mapLegend.hidden = !chkLegend.checked;
   });
 
   // --- Map resolution selector ---

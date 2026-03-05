@@ -44,6 +44,9 @@
       <label class="checkbox-label">
         <input type="checkbox" id="chk-coords"> Cursor coordinates
       </label>
+      <label class="checkbox-label">
+        <input type="checkbox" id="chk-legend"> Map legend
+      </label>
     </section>
 
     <section>
@@ -65,7 +68,14 @@
       <div class="btn-row preset-row" id="mod-preset-buttons"></div>
     </section>
 
-<section id="section-export">
+<section id="section-server-data">
+      <h2>Server Data</h2>
+      <button id="btn-load-save" class="full-width">Load save folder</button>
+      <p class="hint">Select the <strong>chunkdata/</strong> folder inside your save directory</p>
+      <span id="load-save-status" class="hint"></span>
+    </section>
+
+    <section id="section-export">
       <h2>Export Script</h2>
       <label for="sel-format">Format</label>
       <select id="sel-format">
@@ -89,6 +99,7 @@
       <h2>Legend</h2>
       <div class="legend-item"><span class="swatch keep"></span> Keep (preserved)</div>
       <div class="legend-item"><span class="swatch purge"></span> Purge (deleted)</div>
+      <div class="legend-item"><span class="swatch populated"></span> Populated (on disk)</div>
     </section>
 
     <div id="status-bar"></div>
@@ -106,6 +117,11 @@
     </div>
     <canvas id="canvas"></canvas>
     <div id="coords-display"></div>
+    <div id="map-legend" hidden>
+      <div class="map-legend-item"><span class="swatch keep"></span> Keep</div>
+      <div class="map-legend-item"><span class="swatch purge"></span> Purge</div>
+      <div class="map-legend-item"><span class="swatch populated"></span> Populated</div>
+    </div>
   </main>
 
   <div id="walkthrough" class="walkthrough" hidden>
