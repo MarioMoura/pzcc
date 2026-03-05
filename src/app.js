@@ -157,10 +157,10 @@
     const screenTL = screenToWorld(0, 0);
     const screenBR = screenToWorld(canvas.width, canvas.height);
 
-    const startCX = Math.max(0, Math.floor(screenTL.x / CELL_SIZE));
-    const endCX = Math.min(CELLS_X, Math.ceil(screenBR.x / CELL_SIZE));
-    const startCY = Math.max(0, Math.floor(screenTL.y / CELL_SIZE));
-    const endCY = Math.min(CELLS_Y, Math.ceil(screenBR.y / CELL_SIZE));
+    const startCX = Math.floor(screenTL.x / CELL_SIZE);
+    const endCX = Math.ceil(screenBR.x / CELL_SIZE);
+    const startCY = Math.floor(screenTL.y / CELL_SIZE);
+    const endCY = Math.ceil(screenBR.y / CELL_SIZE);
 
     ctx.strokeStyle = 'rgba(200, 210, 220, 0.1)';
     ctx.lineWidth = 1;
@@ -216,10 +216,10 @@
   function drawSelectionPreview() {
     const c1 = tileToCell(selectionStart.x, selectionStart.y);
     const c2 = tileToCell(selectionEnd.x, selectionEnd.y);
-    const minCX = Math.max(0, Math.min(c1.cx, c2.cx));
-    const maxCX = Math.min(CELLS_X - 1, Math.max(c1.cx, c2.cx));
-    const minCY = Math.max(0, Math.min(c1.cy, c2.cy));
-    const maxCY = Math.min(CELLS_Y - 1, Math.max(c1.cy, c2.cy));
+    const minCX = Math.min(c1.cx, c2.cx);
+    const maxCX = Math.max(c1.cx, c2.cx);
+    const minCY = Math.min(c1.cy, c2.cy);
+    const maxCY = Math.max(c1.cy, c2.cy);
 
     const color = selectionType === 'keep'
       ? 'rgba(76, 175, 80, 0.2)'
@@ -324,10 +324,10 @@
       // Commit selection
       const c1 = tileToCell(selectionStart.x, selectionStart.y);
       const c2 = tileToCell(selectionEnd.x, selectionEnd.y);
-      const minCX = Math.max(0, Math.min(c1.cx, c2.cx));
-      const maxCX = Math.min(CELLS_X - 1, Math.max(c1.cx, c2.cx));
-      const minCY = Math.max(0, Math.min(c1.cy, c2.cy));
-      const maxCY = Math.min(CELLS_Y - 1, Math.max(c1.cy, c2.cy));
+      const minCX = Math.min(c1.cx, c2.cx);
+      const maxCX = Math.max(c1.cx, c2.cx);
+      const minCY = Math.min(c1.cy, c2.cy);
+      const maxCY = Math.max(c1.cy, c2.cy);
 
       const target = selections[selectionType];
       const opposite = selectionType === 'keep' ? selections.purge : selections.keep;
@@ -538,6 +538,19 @@
     ]},
   ];
 
+  var MOD_PRESETS = [
+    { id: 'rv_interiors', label: 'RV Interiors', cells: [
+      [75,40],[75,41],[75,42],[75,43],[75,44],
+      [76,40],[76,41],[76,42],[76,43],[76,44],
+      [77,40],[77,41],[77,42],[77,43],[77,44],
+      [78,40],[78,41],[78,42],[78,43],[78,44],
+      [79,40],[79,41],[79,42],[79,43],[79,44],
+      [80,40],[80,41],[80,42],[80,43],[80,44],
+      [81,40],[81,41],[81,42],[81,43],[81,44],
+      [82,40],[82,41],[82,42],[82,43],[82,44],
+    ]},
+  ];
+
   var presetContainer = document.getElementById('preset-buttons');
   PRESETS.forEach(function (preset) {
     var btn = document.createElement('button');
@@ -561,6 +574,30 @@
       }
     });
     presetContainer.appendChild(btn);
+  });
+
+  var modPresetContainer = document.getElementById('mod-preset-buttons');
+  MOD_PRESETS.forEach(function (preset) {
+    var btn = document.createElement('button');
+    btn.textContent = preset.label;
+    btn.dataset.preset = preset.id;
+    btn.addEventListener('click', function () {
+      var keys = preset.cells.map(function (c) { return cellKey(c[0], c[1]); });
+      var target = selections[activeMode];
+      var opposite = activeMode === 'keep' ? selections.purge : selections.keep;
+      var allSelected = keys.every(function (k) { return target.has(k); });
+
+      if (allSelected) {
+        keys.forEach(function (k) { target.delete(k); });
+        render();
+        setStatus('Removed ' + preset.label + ' from ' + activeMode.toUpperCase());
+      } else {
+        keys.forEach(function (k) { target.add(k); opposite.delete(k); });
+        render();
+        setStatus('Applied ' + preset.label + ' — ' + keys.length + ' cells as ' + activeMode.toUpperCase());
+      }
+    });
+    modPresetContainer.appendChild(btn);
   });
 
   // --- Script Generation ---
