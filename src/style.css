@@ -392,6 +392,43 @@ label:not(.checkbox-label) {
   height: 100%;
 }
 
+#selection-bar {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  background: rgba(12, 16, 24, 0.9);
+  border: 1px solid #1e2d4a;
+  border-left: 3px solid #e94560;
+  padding: 6px 14px;
+  font-family: 'Consolas', 'SF Mono', 'Fira Code', monospace;
+  font-size: 0.78rem;
+  color: #6b7a8d;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  transition: opacity 0.2s ease-out;
+  white-space: nowrap;
+}
+
+#selection-bar[hidden] {
+  display: none;
+}
+
+#selection-bar button {
+  padding: 4px 10px;
+  font-size: 0.7rem;
+  border: 1px solid #2a3452;
+  background: #1a2238;
+  color: #a0aab8;
+}
+
+#selection-bar button:hover {
+  background: #1e2a44;
+  border-color: #3a4a6a;
+}
+
 #coords-display {
   position: absolute;
   bottom: 10px;

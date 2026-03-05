@@ -51,6 +51,8 @@
   const chkCoords = document.getElementById('chk-coords');
   const coordsDisplay = document.getElementById('coords-display');
   const statusBar = document.getElementById('status-bar');
+  const selectionBar = document.getElementById('selection-bar');
+  const selectionSummary = document.getElementById('selection-summary');
 
   // --- Coordinate transforms ---
   function worldToScreen(wx, wy) {
@@ -342,6 +344,7 @@
 
       const count = (maxCX - minCX + 1) * (maxCY - minCY + 1);
       setStatus('Selected ' + count + ' cells as ' + selectionType.toUpperCase());
+      updateSelectionBar();
     }
 
     isSelecting = false;
@@ -380,6 +383,7 @@
     if (selections.keep.delete(key) || selections.purge.delete(key)) {
       render();
       setStatus('Removed selection at cell ' + key);
+      updateSelectionBar();
     }
   });
 
@@ -422,17 +426,20 @@
     selections.keep.clear();
     render();
     setStatus('Cleared KEEP selections');
+    updateSelectionBar();
   });
   document.getElementById('btn-clear-purge').addEventListener('click', function () {
     selections.purge.clear();
     render();
     setStatus('Cleared PURGE selections');
+    updateSelectionBar();
   });
   document.getElementById('btn-clear-all').addEventListener('click', function () {
     selections.keep.clear();
     selections.purge.clear();
     render();
     setStatus('Cleared all selections');
+    updateSelectionBar();
   });
   document.getElementById('btn-invert').addEventListener('click', function () {
     var oldKeep = new Set(selections.keep);
@@ -440,6 +447,7 @@
     selections.purge = oldKeep;
     render();
     setStatus('Inverted — ' + selections.keep.size + ' keep, ' + selections.purge.size + ' purge');
+    updateSelectionBar();
   });
   document.getElementById('btn-purge-all').addEventListener('click', function () {
     for (let cx = 0; cx < CELLS_X; cx++) {
@@ -452,6 +460,7 @@
     }
     render();
     setStatus('Marked ' + selections.purge.size + ' cells as purge');
+    updateSelectionBar();
   });
 
   // --- Presets ---
@@ -572,6 +581,7 @@
         render();
         setStatus('Applied ' + preset.label + ' — ' + keys.length + ' cells as ' + activeMode.toUpperCase());
       }
+      updateSelectionBar();
     });
     presetContainer.appendChild(btn);
   });
@@ -596,6 +606,7 @@
         render();
         setStatus('Applied ' + preset.label + ' — ' + keys.length + ' cells as ' + activeMode.toUpperCase());
       }
+      updateSelectionBar();
     });
     modPresetContainer.appendChild(btn);
   });
@@ -729,6 +740,52 @@
   function setStatus(msg) {
     statusBar.textContent = msg;
   }
+
+  function updateSelectionBar() {
+    var keepCount = selections.keep.size;
+    var purgeCount = selections.purge.size;
+    if (keepCount === 0 && purgeCount === 0) {
+      selectionBar.hidden = true;
+      return;
+    }
+    var parts = [];
+    if (keepCount > 0) parts.push(keepCount + ' keep');
+    if (purgeCount > 0) parts.push(purgeCount + ' purge');
+    selectionSummary.textContent = parts.join(' \u00b7 ');
+    selectionBar.hidden = false;
+  }
+
+  document.getElementById('btn-copy-keep').addEventListener('click', function () {
+    if (selections.keep.size === 0) {
+      setStatus('Nothing to copy — no keep cells selected');
+      return;
+    }
+    var coords = Array.from(selections.keep).map(function (k) {
+      var c = parseCellKey(k);
+      return c.cx + '_' + c.cy;
+    }).join('\n');
+    navigator.clipboard.writeText(coords).then(function () {
+      setStatus('Copied ' + selections.keep.size + ' keep cell coordinates');
+    }, function () {
+      setStatus('Copy failed — check browser permissions');
+    });
+  });
+
+  document.getElementById('btn-copy-purge-sel').addEventListener('click', function () {
+    if (selections.purge.size === 0) {
+      setStatus('Nothing to copy — no purge cells selected');
+      return;
+    }
+    var coords = Array.from(selections.purge).map(function (k) {
+      var c = parseCellKey(k);
+      return c.cx + '_' + c.cy;
+    }).join('\n');
+    navigator.clipboard.writeText(coords).then(function () {
+      setStatus('Copied ' + selections.purge.size + ' purge cell coordinates');
+    }, function () {
+      setStatus('Copy failed — check browser permissions');
+    });
+  });
 
   // --- Map resolution selector ---
   var selMapRes = document.getElementById('sel-map-res');
