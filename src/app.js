@@ -806,16 +806,14 @@
       text: 'Drag to select cells. Hold Shift to keep or Ctrl to purge while clicking or dragging. Right-drag or Space+drag to pan. Scroll to zoom. Double-click to deselect.',
     },
     {
-      target: '#sel-format',
+      target: '#section-export',
       title: 'Export Script',
       text: 'Generate a ready-to-run cleanup script with all delete commands baked in. Pick a format, set your server save path, and export.',
-      targetEnd: '#btn-export',
     },
     {
-      target: '#btn-copy-cells',
-      title: 'CLI Alternative',
-      text: 'Prefer the command line? Copy the cell coordinates and download pzcc.sh — a reusable script you feed coords to instead of a one-off export.',
-      targetEnd: '.btn-download',
+      target: '#section-pzcc-utility',
+      title: 'PZCC Utility',
+      text: 'Prefer the command line? Copy cell coordinates to your clipboard with "Copy pzcc cmd", then download pzcc.sh — a reusable shell script you feed those coords to instead of generating a one-off export.',
     },
   ];
 
