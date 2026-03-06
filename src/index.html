@@ -76,6 +76,20 @@
       <button id="btn-delete-purged" class="full-width accent" disabled>Delete purged cells</button>
     </section>
 
+    <section id="section-world-data" hidden>
+      <h2>World Data</h2>
+      <label class="checkbox-label">
+        <input type="checkbox" id="chk-safehouses" checked> Safehouses
+      </label>
+      <label class="checkbox-label">
+        <input type="checkbox" id="chk-npvp-zones" checked> Non-PvP zones
+      </label>
+      <label class="checkbox-label">
+        <input type="checkbox" id="chk-desig-zones" checked> Designation zones
+      </label>
+      <div id="world-data-summary"></div>
+    </section>
+
     <section id="section-export">
       <h2>Export Script</h2>
       <label for="sel-format">Format</label>
@@ -101,6 +115,9 @@
       <div class="legend-item"><span class="swatch keep"></span> Keep (preserved)</div>
       <div class="legend-item"><span class="swatch purge"></span> Purge (deleted)</div>
       <div class="legend-item"><span class="swatch populated"></span> Populated (on disk)</div>
+      <div class="legend-item"><span class="swatch safehouse"></span> Safehouse</div>
+      <div class="legend-item"><span class="swatch nonpvp"></span> Non-PvP zone</div>
+      <div class="legend-item"><span class="swatch designation"></span> Designation zone</div>
     </section>
 
     <div id="status-bar"></div>
@@ -122,6 +139,9 @@
       <div class="map-legend-item"><span class="swatch keep"></span> Keep</div>
       <div class="map-legend-item"><span class="swatch purge"></span> Purge</div>
       <div class="map-legend-item"><span class="swatch populated"></span> Populated</div>
+      <div class="map-legend-item"><span class="swatch safehouse"></span> Safehouse</div>
+      <div class="map-legend-item"><span class="swatch nonpvp"></span> Non-PvP</div>
+      <div class="map-legend-item"><span class="swatch designation"></span> Designation</div>
     </div>
   </main>
 

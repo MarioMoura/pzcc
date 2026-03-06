@@ -27,6 +27,7 @@
   const populatedChunks = new Set(); // chunk-level granularity from map/ scan
   let activeMode = 'keep'; // 'keep' or 'purge'
   let saveDirHandle = null; // Set when loaded via showDirectoryPicker with readwrite
+  let mapMeta = null; // Parsed map_meta.bin data
 
   let mapImage = null;
   let mapLoaded = false;
@@ -127,6 +128,9 @@
     // Draw populated cells (under selections)
     drawPopulated();
 
+    // Draw map_meta overlays (under selections)
+    drawMapMetaOverlays();
+
     // Draw selections
     drawSelections();
 
@@ -176,6 +180,81 @@
       for (const key of populatedCells) {
         const { cx, cy } = parseCellKey(key);
         drawCellOverlay(cx, cy, 'rgba(255, 193, 7, 0.2)', 'rgba(255, 193, 7, 0.5)');
+      }
+    }
+  }
+
+  function drawMapMetaOverlays() {
+    if (!mapMeta) return;
+    var chkSH = document.getElementById('chk-safehouses');
+    var chkNPVP = document.getElementById('chk-npvp-zones');
+    var chkDZ = document.getElementById('chk-desig-zones');
+
+    // Safehouses — blue
+    if (chkSH && chkSH.checked) {
+      for (var i = 0; i < mapMeta.safehouses.length; i++) {
+        var sh = mapMeta.safehouses[i];
+        var tl = worldToScreen(sh.x, sh.y);
+        var br = worldToScreen(sh.x + sh.w, sh.y + sh.h);
+        var sw = br.x - tl.x;
+        var sH = br.y - tl.y;
+        if (sw < 2 && sH < 2) continue;
+        ctx.fillStyle = 'rgba(100, 180, 255, 0.25)';
+        ctx.fillRect(tl.x, tl.y, sw, sH);
+        ctx.strokeStyle = 'rgba(100, 180, 255, 0.7)';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(tl.x, tl.y, sw, sH);
+        if (sw > 60) {
+          var label = sh.owner || sh.title || '';
+          if (label) {
+            ctx.font = 'bold 11px monospace';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillStyle = 'rgba(100, 180, 255, 0.9)';
+            ctx.fillText(label, tl.x + sw / 2, tl.y + sH / 2, sw - 8);
+          }
+        }
+      }
+    }
+
+    // Non-PvP zones — green
+    if (chkNPVP && chkNPVP.checked) {
+      for (var i = 0; i < mapMeta.nonPvpZones.length; i++) {
+        var z = mapMeta.nonPvpZones[i];
+        var tl = worldToScreen(z.x, z.y);
+        var br = worldToScreen(z.x2, z.y2);
+        var sw = br.x - tl.x;
+        var sH = br.y - tl.y;
+        if (sw < 2 && sH < 2) continue;
+        ctx.fillStyle = 'rgba(180, 120, 255, 0.15)';
+        ctx.fillRect(tl.x, tl.y, sw, sH);
+        ctx.strokeStyle = 'rgba(180, 120, 255, 0.5)';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(tl.x, tl.y, sw, sH);
+      }
+    }
+
+    // Designation zones — orange
+    if (chkDZ && chkDZ.checked) {
+      for (var i = 0; i < mapMeta.designationZones.length; i++) {
+        var d = mapMeta.designationZones[i];
+        var tl = worldToScreen(d.x, d.y);
+        var br = worldToScreen(d.x + d.w, d.y + d.h);
+        var sw = br.x - tl.x;
+        var sH = br.y - tl.y;
+        if (sw < 2 && sH < 2) continue;
+        ctx.fillStyle = 'rgba(255, 160, 50, 0.15)';
+        ctx.fillRect(tl.x, tl.y, sw, sH);
+        ctx.strokeStyle = 'rgba(255, 160, 50, 0.5)';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(tl.x, tl.y, sw, sH);
+        if (sw > 50) {
+          ctx.font = 'bold 10px monospace';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillStyle = 'rgba(255, 160, 50, 0.85)';
+          ctx.fillText(d.type || d.name || '', tl.x + sw / 2, tl.y + sH / 2, sw - 6);
+        }
       }
     }
   }
@@ -853,6 +932,177 @@
     render();
   }
 
+  // --- map_meta.bin parser ---
+  function readString(dv, offset) {
+    var len = dv.getInt16(offset);
+    offset += 2;
+    if (len <= 0) return { value: '', newOffset: offset };
+    var bytes = new Uint8Array(dv.buffer, dv.byteOffset + offset, len);
+    var value = new TextDecoder('utf-8').decode(bytes);
+    return { value: value, newOffset: offset + len };
+  }
+
+  function parseMapMeta(buffer) {
+    var dv = new DataView(buffer);
+    var off = 0;
+
+    // Header: 4 magic bytes + worldVersion + bounds
+    off += 4; // skip magic
+    var worldVersion = dv.getInt32(off); off += 4;
+    var x1 = dv.getInt32(off); off += 4;
+    var y1 = dv.getInt32(off); off += 4;
+    var x2 = dv.getInt32(off); off += 4;
+    var y2 = dv.getInt32(off); off += 4;
+
+    // Per-cell rooms & buildings — read and skip
+    for (var cx = x1; cx <= x2; cx++) {
+      for (var cy = y1; cy <= y2; cy++) {
+        // Rooms
+        var numRooms = dv.getInt32(off); off += 4;
+        off += numRooms * 10; // 8 (int64 metaID) + 2 (int16 flags)
+
+        // Buildings
+        var numBuildings = dv.getInt32(off); off += 4;
+        var buildingSize = worldVersion >= 201 ? 23 : 19;
+        off += numBuildings * buildingSize;
+      }
+    }
+
+    // Safehouses
+    var nSafehouse = dv.getInt32(off); off += 4;
+    var safehouses = [];
+    for (var si = 0; si < nSafehouse; si++) {
+      var sh = {};
+      sh.x = dv.getInt32(off); off += 4;
+      sh.y = dv.getInt32(off); off += 4;
+      sh.w = dv.getInt32(off); off += 4;
+      sh.h = dv.getInt32(off); off += 4;
+      var s = readString(dv, off); sh.owner = s.value; off = s.newOffset;
+      if (worldVersion >= 216) {
+        sh.hitPoints = dv.getInt32(off); off += 4;
+      }
+      var playersCount = dv.getInt32(off); off += 4;
+      sh.players = [];
+      for (var pi = 0; pi < playersCount; pi++) {
+        s = readString(dv, off); sh.players.push(s.value); off = s.newOffset;
+      }
+      off += 8; // lastVisited (int64)
+      s = readString(dv, off); sh.title = s.value; off = s.newOffset;
+      if (worldVersion >= 223) {
+        off += 8; // datetimeCreated (int64)
+        s = readString(dv, off); sh.location = s.value; off = s.newOffset;
+      }
+      var respawnCount = dv.getInt32(off); off += 4;
+      for (var ri = 0; ri < respawnCount; ri++) {
+        s = readString(dv, off); off = s.newOffset;
+      }
+      safehouses.push(sh);
+    }
+
+    // Non-PvP Zones
+    var nZones = dv.getInt32(off); off += 4;
+    var nonPvpZones = [];
+    for (var zi = 0; zi < nZones; zi++) {
+      var z = {};
+      z.x = dv.getInt32(off); off += 4;
+      z.y = dv.getInt32(off); off += 4;
+      z.x2 = dv.getInt32(off); off += 4;
+      z.y2 = dv.getInt32(off); off += 4;
+      off += 4; // size
+      var s = readString(dv, off); z.title = s.value; off = s.newOffset;
+      nonPvpZones.push(z);
+    }
+
+    // Factions
+    var nFactions = dv.getInt32(off); off += 4;
+    var factions = [];
+    for (var fi = 0; fi < nFactions; fi++) {
+      var f = {};
+      var s = readString(dv, off); f.name = s.value; off = s.newOffset;
+      s = readString(dv, off); f.owner = s.value; off = s.newOffset;
+      var playerSize = dv.getInt32(off); off += 4;
+      var hasTag = dv.getUint8(off); off += 1;
+      if (hasTag) {
+        s = readString(dv, off); f.tag = s.value; off = s.newOffset;
+        f.tagColor = {
+          r: dv.getFloat32(off), g: dv.getFloat32(off + 4), b: dv.getFloat32(off + 8)
+        };
+        off += 12;
+      }
+      f.players = [];
+      for (var pi = 0; pi < playerSize; pi++) {
+        s = readString(dv, off); f.players.push(s.value); off = s.newOffset;
+      }
+      factions.push(f);
+    }
+
+    // Designation Zones
+    var nDZones = dv.getInt32(off); off += 4;
+    var designationZones = [];
+    for (var di = 0; di < nDZones; di++) {
+      var d = {};
+      d.id = dv.getFloat64(off); off += 8;
+      d.x = dv.getInt32(off); off += 4;
+      d.y = dv.getInt32(off); off += 4;
+      d.z = dv.getInt32(off); off += 4;
+      d.h = dv.getInt32(off); off += 4;
+      d.w = dv.getInt32(off); off += 4;
+      var s = readString(dv, off); d.type = s.value; off = s.newOffset;
+      s = readString(dv, off); d.name = s.value; off = s.newOffset;
+      off += 4; // hourLastSeen
+      designationZones.push(d);
+    }
+
+    // Stash System — try to read, but tolerate EOF
+    var stashes = { possible: 0, buildingsToDo: 0, mapsRead: 0 };
+    var uniqueRDS = 0;
+    try {
+      // Multiplayer saves may have an extra int32 position here — detect by trying
+      var nPossible = dv.getInt32(off); off += 4;
+      // Sanity check: if nPossible is absurdly large, it might be the MP skip offset
+      if (nPossible > 100000) {
+        // Likely the MP skip int32 — re-read
+        nPossible = dv.getInt32(off); off += 4;
+      }
+      stashes.possible = nPossible;
+      for (var i = 0; i < nPossible; i++) {
+        var s = readString(dv, off); off = s.newOffset;
+        off += 8; // buildingX + buildingY
+      }
+      var nBuildingsToDo = dv.getInt32(off); off += 4;
+      stashes.buildingsToDo = nBuildingsToDo;
+      for (var i = 0; i < nBuildingsToDo; i++) {
+        var s = readString(dv, off); off = s.newOffset;
+        off += 8;
+      }
+      var nMapsRead = dv.getInt32(off); off += 4;
+      stashes.mapsRead = nMapsRead;
+      for (var i = 0; i < nMapsRead; i++) {
+        var s = readString(dv, off); off = s.newOffset;
+      }
+
+      // Unique RDS
+      var nRDS = dv.getInt32(off); off += 4;
+      uniqueRDS = nRDS;
+      for (var i = 0; i < nRDS; i++) {
+        var s = readString(dv, off); off = s.newOffset;
+      }
+    } catch (e) {
+      // EOF or parse error in stash section — ignore, we have the important data
+    }
+
+    return {
+      worldVersion: worldVersion,
+      bounds: { x1: x1, y1: y1, x2: x2, y2: y2 },
+      safehouses: safehouses,
+      nonPvpZones: nonPvpZones,
+      factions: factions,
+      designationZones: designationZones,
+      stashes: stashes,
+      uniqueRDS: uniqueRDS,
+    };
+  }
+
   async function loadViaDirectoryPicker() {
     var dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
 
@@ -920,11 +1170,27 @@
     } catch (e) {
       // map/ directory doesn't exist, chunk view not available
     }
+    // Parse map_meta.bin
+    loadingBarFill.style.width = '95%';
+    loadingText.textContent = 'Parsing map_meta.bin...';
+    await new Promise(function (r) { setTimeout(r, 0); });
+    try {
+      var metaHandle = await dirHandle.getFileHandle('map_meta.bin');
+      var metaFile = await metaHandle.getFile();
+      var metaBuffer = await metaFile.arrayBuffer();
+      mapMeta = parseMapMeta(metaBuffer);
+      console.log('map_meta.bin parsed:', mapMeta);
+    } catch (e) {
+      // map_meta.bin not found or parse error — leave mapMeta null
+      mapMeta = null;
+    }
+
     loadingBarFill.style.width = '100%';
     btnLoadSave.disabled = false;
     loadingModal.classList.remove('visible');
 
     applyPopulatedCells();
+    updateWorldDataSection();
     updateDeleteButton();
   }
 
@@ -1006,6 +1272,108 @@
   }
 
   btnDeletePurged.addEventListener('click', deletePurgedCells);
+
+  // --- World Data section ---
+  function updateWorldDataSection() {
+    var section = document.getElementById('section-world-data');
+    var summary = document.getElementById('world-data-summary');
+    if (!mapMeta) {
+      section.hidden = true;
+      return;
+    }
+    section.hidden = false;
+    summary.textContent = '';
+
+    // Counts
+    var counts = [];
+    if (mapMeta.safehouses.length > 0) counts.push(mapMeta.safehouses.length + ' safehouse' + (mapMeta.safehouses.length !== 1 ? 's' : ''));
+    if (mapMeta.nonPvpZones.length > 0) counts.push(mapMeta.nonPvpZones.length + ' non-PvP zone' + (mapMeta.nonPvpZones.length !== 1 ? 's' : ''));
+    if (mapMeta.designationZones.length > 0) counts.push(mapMeta.designationZones.length + ' designation zone' + (mapMeta.designationZones.length !== 1 ? 's' : ''));
+    if (mapMeta.factions.length > 0) counts.push(mapMeta.factions.length + ' faction' + (mapMeta.factions.length !== 1 ? 's' : ''));
+    if (counts.length > 0) {
+      var p = document.createElement('p');
+      p.className = 'world-data-counts';
+      p.textContent = counts.join(' \u00b7 ');
+      summary.appendChild(p);
+    }
+    var pv = document.createElement('p');
+    pv.className = 'world-data-counts';
+    pv.textContent = 'World v' + mapMeta.worldVersion;
+    summary.appendChild(pv);
+
+    // Safehouses list
+    if (mapMeta.safehouses.length > 0) {
+      var group = document.createElement('div');
+      group.className = 'world-data-group';
+      var label = document.createElement('span');
+      label.className = 'world-data-label';
+      label.textContent = 'Safehouses';
+      group.appendChild(label);
+      for (var i = 0; i < mapMeta.safehouses.length; i++) {
+        var sh = mapMeta.safehouses[i];
+        var info = sh.owner || 'unknown';
+        if (sh.title) info += ' \u2014 ' + sh.title;
+        info += ' (' + sh.players.length + ' player' + (sh.players.length !== 1 ? 's' : '') + ')';
+        var entry = document.createElement('div');
+        entry.className = 'world-data-entry';
+        entry.textContent = info;
+        group.appendChild(entry);
+      }
+      summary.appendChild(group);
+    }
+
+    // Factions list
+    if (mapMeta.factions.length > 0) {
+      var group = document.createElement('div');
+      group.className = 'world-data-group';
+      var label = document.createElement('span');
+      label.className = 'world-data-label';
+      label.textContent = 'Factions';
+      group.appendChild(label);
+      for (var i = 0; i < mapMeta.factions.length; i++) {
+        var f = mapMeta.factions[i];
+        var entry = document.createElement('div');
+        entry.className = 'world-data-entry';
+        if (f.tagColor) {
+          var swatch = document.createElement('span');
+          swatch.className = 'faction-swatch';
+          var r = Math.round(f.tagColor.r * 255);
+          var g = Math.round(f.tagColor.g * 255);
+          var b = Math.round(f.tagColor.b * 255);
+          swatch.style.background = 'rgb(' + r + ',' + g + ',' + b + ')';
+          entry.appendChild(swatch);
+        }
+        var text = f.name + ' \u2014 ' + f.owner;
+        if (f.tag) text += ' [' + f.tag + ']';
+        text += ' (' + f.players.length + ' member' + (f.players.length !== 1 ? 's' : '') + ')';
+        entry.appendChild(document.createTextNode(text));
+        group.appendChild(entry);
+      }
+      summary.appendChild(group);
+    }
+
+    // Stash summary
+    if (mapMeta.stashes.possible > 0 || mapMeta.stashes.buildingsToDo > 0 || mapMeta.stashes.mapsRead > 0) {
+      var group = document.createElement('div');
+      group.className = 'world-data-group';
+      var label = document.createElement('span');
+      label.className = 'world-data-label';
+      label.textContent = 'Stashes';
+      group.appendChild(label);
+      var entry = document.createElement('div');
+      entry.className = 'world-data-entry';
+      entry.textContent = mapMeta.stashes.possible + ' possible \u00b7 ' + mapMeta.stashes.buildingsToDo + ' buildings \u00b7 ' + mapMeta.stashes.mapsRead + ' maps read';
+      group.appendChild(entry);
+      summary.appendChild(group);
+    }
+  }
+
+  // Wire up world data checkboxes
+  document.addEventListener('change', function (e) {
+    if (e.target.id === 'chk-safehouses' || e.target.id === 'chk-npvp-zones' || e.target.id === 'chk-desig-zones') {
+      render();
+    }
+  });
 
   // --- Legend toggle ---
   chkLegend.addEventListener('change', function () {

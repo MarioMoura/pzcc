@@ -352,6 +352,63 @@ label:not(.checkbox-label) {
   border: 2px solid rgba(255, 193, 7, 0.6);
 }
 
+.swatch.safehouse {
+  background: rgba(100, 180, 255, 0.4);
+  border: 2px solid rgba(100, 180, 255, 0.7);
+}
+
+.swatch.nonpvp {
+  background: rgba(180, 120, 255, 0.35);
+  border: 2px solid rgba(180, 120, 255, 0.55);
+}
+
+.swatch.designation {
+  background: rgba(255, 160, 50, 0.35);
+  border: 2px solid rgba(255, 160, 50, 0.5);
+}
+
+/* --- World Data summary --- */
+
+.world-data-counts {
+  font-family: 'Consolas', 'SF Mono', 'Fira Code', monospace;
+  font-size: 0.72rem;
+  color: #6b7a8d;
+  margin-top: 8px;
+  line-height: 1.5;
+}
+
+.world-data-group {
+  margin-top: 10px;
+}
+
+.world-data-label {
+  display: block;
+  font-family: 'Chakra Petch', system-ui, sans-serif;
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #7a8a9e;
+  margin-bottom: 4px;
+}
+
+.world-data-entry {
+  font-size: 0.74rem;
+  color: #8898aa;
+  padding: 2px 0;
+  line-height: 1.4;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.faction-swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  flex-shrink: 0;
+}
+
 /* --- Footer elements --- */
 
 #status-bar {
