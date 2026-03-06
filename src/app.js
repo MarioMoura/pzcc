@@ -25,6 +25,7 @@
   const selections = { keep: new Set(), purge: new Set() };
   const populatedCells = new Set();
   let activeMode = 'keep'; // 'keep' or 'purge'
+  let saveDirHandle = null; // Set when loaded via showDirectoryPicker with readwrite
 
   let mapImage = null;
   let mapLoaded = false;
@@ -58,6 +59,7 @@
   const loadSaveStatus = document.getElementById('load-save-status');
   const chkLegend = document.getElementById('chk-legend');
   const mapLegend = document.getElementById('map-legend');
+  const btnDeletePurged = document.getElementById('btn-delete-purged');
 
   // --- Coordinate transforms ---
   function worldToScreen(wx, wy) {
@@ -761,6 +763,7 @@
     var purgeCount = selections.purge.size;
     if (keepCount === 0 && purgeCount === 0) {
       selectionBar.hidden = true;
+      updateDeleteButton();
       return;
     }
     var parts = [];
@@ -768,6 +771,7 @@
     if (purgeCount > 0) parts.push(purgeCount + ' purge');
     selectionSummary.textContent = parts.join(' \u00b7 ');
     selectionBar.hidden = false;
+    updateDeleteButton();
   }
 
   document.getElementById('btn-copy-keep').addEventListener('click', function () {
@@ -820,7 +824,7 @@
   }
 
   async function loadViaDirectoryPicker() {
-    var dirHandle = await window.showDirectoryPicker({ mode: 'read' });
+    var dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
 
     // Try to find the chunkdata subdirectory
     var chunkdataHandle;
@@ -831,6 +835,7 @@
       return;
     }
 
+    saveDirHandle = dirHandle;
     populatedCells.clear();
     var pattern = /^chunkdata_(-?\d+)_(-?\d+)\.bin$/;
 
@@ -842,6 +847,7 @@
       }
     }
     applyPopulatedCells();
+    updateDeleteButton();
   }
 
   dirInput.addEventListener('change', function () {
@@ -862,9 +868,82 @@
     dirInput.value = '';
   });
 
-  btnLoadSave.addEventListener('click', function () {
+  btnLoadSave.addEventListener('click', async function () {
+    if (window.showDirectoryPicker) {
+      try {
+        await loadViaDirectoryPicker();
+        return;
+      } catch (e) {
+        // User cancelled or API not available — fall through to file input
+        if (e.name !== 'AbortError') {
+          console.warn('showDirectoryPicker failed, falling back to file input:', e);
+        }
+      }
+    }
     dirInput.click();
   });
+
+  // --- Delete purged cells ---
+  function updateDeleteButton() {
+    btnDeletePurged.disabled = !saveDirHandle || selections.purge.size === 0;
+  }
+
+  async function removeFile(dirHandle, path) {
+    var parts = path.split('/');
+    var current = dirHandle;
+    for (var i = 0; i < parts.length - 1; i++) {
+      try {
+        current = await current.getDirectoryHandle(parts[i]);
+      } catch (e) {
+        return; // directory doesn't exist, skip
+      }
+    }
+    try {
+      await current.removeEntry(parts[parts.length - 1]);
+    } catch (e) {
+      // file doesn't exist, skip
+    }
+  }
+
+  async function deletePurgedCells() {
+    var cellList = Array.from(selections.purge).map(parseCellKey);
+    if (cellList.length === 0) return;
+    if (!confirm('Delete ' + cellList.length + ' cells from disk? This cannot be undone.')) return;
+
+    var total = cellList.length;
+    for (var i = 0; i < cellList.length; i++) {
+      var cx = cellList[i].cx;
+      var cy = cellList[i].cy;
+      setStatus('Deleting cell ' + (i + 1) + '/' + total + ' (' + cx + ',' + cy + ')...');
+
+      // Cell-level files
+      await removeFile(saveDirHandle, 'chunkdata/chunkdata_' + cx + '_' + cy + '.bin');
+      await removeFile(saveDirHandle, 'zpop/zpop_' + cx + '_' + cy + '.bin');
+      await removeFile(saveDirHandle, 'apop/apop_' + cx + '_' + cy + '.bin');
+      await removeFile(saveDirHandle, 'metagrid/metacell_' + cx + '_' + cy + '.bin');
+
+      // Chunk-level files: map/{chunkX}/{chunkY}.bin and isoregiondata/datachunk_CHX_CHY.bin
+      var chxStart = cx * CHUNKS_PER_CELL;
+      var chyStart = cy * CHUNKS_PER_CELL;
+      for (var chx = chxStart; chx < chxStart + CHUNKS_PER_CELL; chx++) {
+        for (var chy = chyStart; chy < chyStart + CHUNKS_PER_CELL; chy++) {
+          await removeFile(saveDirHandle, 'map/' + chx + '/' + chy + '.bin');
+          await removeFile(saveDirHandle, 'isoregiondata/datachunk_' + chx + '_' + chy + '.bin');
+        }
+      }
+
+      var key = cellKey(cx, cy);
+      populatedCells.delete(key);
+      selections.purge.delete(key);
+    }
+
+    updateDeleteButton();
+    updateSelectionBar();
+    render();
+    setStatus('Deleted ' + total + ' cells from disk');
+  }
+
+  btnDeletePurged.addEventListener('click', deletePurgedCells);
 
   // --- Legend toggle ---
   chkLegend.addEventListener('change', function () {
@@ -1010,6 +1089,21 @@
   });
 
   // --- Init ---
+  var loadSaveHint = document.getElementById('load-save-hint');
+  if (window.showDirectoryPicker) {
+    loadSaveHint.textContent = 'Select the ';
+    var strong1 = document.createElement('strong');
+    strong1.textContent = 'save directory';
+    loadSaveHint.appendChild(strong1);
+    loadSaveHint.appendChild(document.createTextNode(' to enable scanning and direct deletion'));
+  } else {
+    loadSaveHint.textContent = 'Select the ';
+    var strong2 = document.createElement('strong');
+    strong2.textContent = 'chunkdata/';
+    loadSaveHint.appendChild(strong2);
+    loadSaveHint.appendChild(document.createTextNode(' folder inside your save directory'));
+  }
+
   window.addEventListener('resize', resizeCanvas);
   resizeCanvas();
   loadMap(selMapRes.value);
