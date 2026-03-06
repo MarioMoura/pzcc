@@ -886,27 +886,49 @@
     }
 
     // Scan map/ for chunk-level granularity
-    setStatus('Scanning map chunks...');
+    var loadingModal = document.getElementById('loading-modal');
+    var loadingBarFill = document.getElementById('loading-bar-fill');
+    var loadingText = document.getElementById('loading-modal-text');
+    loadingModal.classList.add('visible');
+    loadingBarFill.style.width = '0%';
+    loadingText.textContent = 'Reading chunkdata...';
+    btnLoadSave.disabled = true;
+
     try {
       var mapHandle = await dirHandle.getDirectoryHandle('map');
+      loadingText.textContent = 'Collecting map directories...';
+      await new Promise(function (r) { setTimeout(r, 0); });
+
+      var chxDirs = [];
       for await (var chxDir of mapHandle.values()) {
-        if (chxDir.kind !== 'directory') continue;
-        var chx = parseInt(chxDir.name);
-        if (isNaN(chx)) continue;
-        for await (var chyFile of chxDir.values()) {
+        if (chxDir.kind === 'directory' && /^-?\d+$/.test(chxDir.name)) {
+          chxDirs.push(chxDir);
+        }
+      }
+      for (var di = 0; di < chxDirs.length; di++) {
+        var chx = parseInt(chxDirs[di].name);
+        for await (var chyFile of chxDirs[di].values()) {
           if (chyFile.kind !== 'file') continue;
           var chyMatch = chyFile.name.match(/^(-?\d+)\.bin$/);
           if (chyMatch) {
             var chy = parseInt(chyMatch[1]);
             populatedChunks.add(chx + ',' + chy);
-            // Also mark the parent cell as populated
             populatedCells.add(cellKey(Math.floor(chx / CHUNKS_PER_CELL), Math.floor(chy / CHUNKS_PER_CELL)));
           }
+        }
+        if (di % 10 === 0) {
+          var pct = Math.round((di / chxDirs.length) * 100);
+          loadingBarFill.style.width = pct + '%';
+          loadingText.textContent = 'Scanning chunks... ' + pct + '% (' + populatedChunks.size + ' chunks)';
+          await new Promise(function (r) { setTimeout(r, 0); });
         }
       }
     } catch (e) {
       // map/ directory doesn't exist, chunk view not available
     }
+    loadingBarFill.style.width = '100%';
+    btnLoadSave.disabled = false;
+    loadingModal.classList.remove('visible');
 
     applyPopulatedCells();
     updateDeleteButton();

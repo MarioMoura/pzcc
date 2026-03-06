@@ -989,6 +989,67 @@ label:not(.checkbox-label) {
   border-color: #e94560;
 }
 
+/* --- Loading modal --- */
+
+.loading-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+
+.loading-modal.visible {
+  display: flex;
+}
+
+.loading-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.loading-modal__card {
+  position: relative;
+  background: #1a2236;
+  border: 1px solid #2a3a5c;
+  border-radius: 10px;
+  padding: 28px 36px;
+  min-width: 320px;
+  max-width: 400px;
+  text-align: center;
+}
+
+.loading-modal__title {
+  font-family: 'Chakra Petch', monospace;
+  font-size: 1.1rem;
+  color: #e0e4ea;
+  margin-bottom: 16px;
+}
+
+.loading-modal__bar-track {
+  height: 8px;
+  background: #0e1118;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+
+.loading-modal__bar-fill {
+  height: 100%;
+  width: 0%;
+  background: #e94560;
+  border-radius: 4px;
+  transition: width 0.15s ease;
+}
+
+.loading-modal__text {
+  font-size: 0.82rem;
+  color: #8892a4;
+  font-family: monospace;
+}
+
 /* --- Walkthrough overlay --- */
 
 .walkthrough {
