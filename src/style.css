@@ -915,6 +915,118 @@ label:not(.checkbox-label) {
   border: 1px solid rgba(233, 69, 96, 0.2);
 }
 
+/* Inline code in page text */
+.page-section p code,
+.page-section li code {
+  font-family: 'Consolas', 'SF Mono', 'Fira Code', monospace;
+  font-size: 0.82em;
+  color: #a0aab8;
+  background: rgba(14, 17, 24, 0.6);
+  padding: 1px 5px;
+  border: 1px solid #1e2d4a;
+}
+
+/* Provenance/meta callout */
+.page-callout {
+  margin-top: 28px;
+  padding: 16px 20px;
+  background: rgba(233, 69, 96, 0.04);
+  border: 1px solid rgba(233, 69, 96, 0.15);
+  border-left: 3px solid rgba(233, 69, 96, 0.4);
+  font-size: 0.82rem;
+  color: #6b7a8d;
+  line-height: 1.65;
+}
+
+.page-callout strong {
+  color: #8898aa;
+}
+
+.page-callout a {
+  color: #e94560;
+  text-decoration: none;
+  border-bottom: 1px solid rgba(233, 69, 96, 0.3);
+  transition: border-color 0.15s;
+}
+
+.page-callout a:hover {
+  border-bottom-color: #e94560;
+}
+
+.page-callout code {
+  font-family: 'Consolas', 'SF Mono', 'Fira Code', monospace;
+  font-size: 0.92em;
+  color: #8898aa;
+}
+
+/* Binary format field list */
+.field-list {
+  list-style: none;
+  margin: 16px 0 24px;
+  padding: 0;
+}
+
+.field-list li {
+  padding: 8px 14px;
+  border-bottom: 1px solid #181e32;
+  font-size: 0.85rem;
+  color: #8898aa;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.field-list li:first-child {
+  border-top: 1px solid #1e2d4a;
+}
+
+.field-list__num {
+  font-family: 'Consolas', 'SF Mono', 'Fira Code', monospace;
+  font-size: 0.72rem;
+  color: #e94560;
+  opacity: 0.6;
+  min-width: 1.4em;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.field-list__name {
+  font-family: 'Chakra Petch', system-ui, sans-serif;
+  font-weight: 600;
+  color: #c8d0da;
+  min-width: 120px;
+  flex-shrink: 0;
+}
+
+.field-list__desc {
+  color: #6b7a8d;
+  font-size: 0.82rem;
+}
+
+.field-list__desc code {
+  font-family: 'Consolas', 'SF Mono', 'Fira Code', monospace;
+  font-size: 0.92em;
+  color: #7a8a9e;
+}
+
+/* Terminal diagram syntax highlights */
+.terminal__type {
+  color: #5a8dee;
+}
+
+.terminal__field {
+  color: #c8d0da;
+}
+
+.terminal__comment {
+  color: #4a5a6e;
+}
+
+.terminal__version {
+  color: #e94560;
+  opacity: 0.7;
+}
+
 /* Responsive */
 @media (max-width: 600px) {
   .hierarchy-flow {
@@ -940,6 +1052,16 @@ label:not(.checkbox-label) {
   }
   .calc-grid {
     grid-template-columns: 1fr;
+  }
+  .field-list li {
+    flex-wrap: wrap;
+  }
+  .field-list__name {
+    min-width: auto;
+  }
+  .field-list__desc {
+    flex-basis: 100%;
+    padding-left: 2.4em;
   }
 }
 

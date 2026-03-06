@@ -145,7 +145,92 @@
     </article>
 
     <article class="page-section fade-in" style="--delay: 4">
-      <h2><span class="section-num">05</span> CLI Script</h2>
+      <h2><span class="section-num">05</span> map_meta.bin Format</h2>
+      <p>The <code>map_meta.bin</code> file sits at the save root and stores server-wide metadata: room exploration state, building alarms, safehouses, factions, and more. It&rsquo;s a flat binary blob read sequentially &mdash; no headers, no offsets, just one section after another.</p>
+
+      <h3>String encoding</h3>
+      <p>All strings use a simple format: a <strong>2-byte signed length</strong> followed by that many bytes of <strong>standard UTF-8</strong>. A length of 0 means an empty string.</p>
+      <pre class="terminal"><code><span class="terminal__dim">  ┌────────────┬───────────────────────┐</span>
+<span class="terminal__dim">  │</span> <span class="terminal__type">int16</span> <span class="terminal__field">len</span>  <span class="terminal__dim">│</span> <span class="terminal__type">byte[]</span> <span class="terminal__field">utf8</span> (len)     <span class="terminal__dim">│</span>
+<span class="terminal__dim">  └────────────┴───────────────────────┘</span></code></pre>
+
+      <h3>File layout</h3>
+      <p>Each section is read in order. Counts precede repeated entries, so the parser always knows how many items to expect.</p>
+
+      <ol class="field-list">
+        <li>
+          <span class="field-list__num">1</span>
+          <span class="field-list__name">Header</span>
+          <span class="field-list__desc">4 magic bytes, <code>int32</code> worldVersion, grid bounds <code>x1 y1 x2 y2</code></span>
+        </li>
+        <li>
+          <span class="field-list__num">2</span>
+          <span class="field-list__name">Rooms <span class="coord-tag coord-tag--cell">per cell</span></span>
+          <span class="field-list__desc"><code>int64</code> metaID, <code>int16</code> flags &mdash; explored, lights, spawn, roof</span>
+        </li>
+        <li>
+          <span class="field-list__num">3</span>
+          <span class="field-list__name">Buildings <span class="coord-tag coord-tag--cell">per cell</span></span>
+          <span class="field-list__desc"><code>int64</code> metaID, alarm state, key, visited, loot timer, decay<sup>*</sup></span>
+        </li>
+        <li>
+          <span class="field-list__num">4</span>
+          <span class="field-list__name">Safehouses</span>
+          <span class="field-list__desc">Rect, owner, members, title, location &mdash; see detail below</span>
+        </li>
+        <li>
+          <span class="field-list__num">5</span>
+          <span class="field-list__name">Non-PvP Zones</span>
+          <span class="field-list__desc">Rect <code>x y x2 y2</code>, size, title</span>
+        </li>
+        <li>
+          <span class="field-list__num">6</span>
+          <span class="field-list__name">Factions</span>
+          <span class="field-list__desc">Name, owner, optional tag with RGB color, member list</span>
+        </li>
+        <li>
+          <span class="field-list__num">7</span>
+          <span class="field-list__name">Designation Zones</span>
+          <span class="field-list__desc"><code>float64</code> id, position, type, name, last seen hour</span>
+        </li>
+        <li>
+          <span class="field-list__num">8</span>
+          <span class="field-list__name">Stash System</span>
+          <span class="field-list__desc">Possible stashes, buildings to do, already-read maps</span>
+        </li>
+        <li>
+          <span class="field-list__num">9</span>
+          <span class="field-list__name">Unique RDS Spawned</span>
+          <span class="field-list__desc">Item names already spawned by the random distribution system</span>
+        </li>
+      </ol>
+
+      <p><sup>*</sup> Some fields are version-gated: <code>alarmDecay</code> requires worldVersion &ge;&nbsp;201, <code>hitPoints</code> &ge;&nbsp;216, <code>created</code> and <code>location</code> &ge;&nbsp;223.</p>
+
+      <h3>Safehouse detail</h3>
+      <p>Each safehouse entry defines a rectangle in world tile coordinates with ownership and member lists:</p>
+      <pre class="terminal"><code><span class="terminal__type">int32</span>  <span class="terminal__field">count</span>
+<span class="terminal__dim">  ┌─</span> <span class="terminal__type">int32</span>  <span class="terminal__field">x, y, w, h</span>          <span class="terminal__comment">&larr; bounding rect (tile coords)</span>
+<span class="terminal__dim">  │</span>  <span class="terminal__type">string</span> <span class="terminal__field">owner</span>                <span class="terminal__comment">&larr; who claimed it</span>
+<span class="terminal__dim">  │</span>  <span class="terminal__type">int32</span>  <span class="terminal__field">hitPoints</span>            <span class="terminal__version">(v&ge;216)</span>
+<span class="terminal__dim">  │</span>  <span class="terminal__type">int32</span>  <span class="terminal__field">nPlayers</span>
+<span class="terminal__dim">  │</span>    <span class="terminal__dim">&boxur;&boxh;</span> <span class="terminal__type">string</span> <span class="terminal__field">playerName[]</span>    <span class="terminal__comment">&larr; authorized members</span>
+<span class="terminal__dim">  │</span>  <span class="terminal__type">int64</span>  <span class="terminal__field">lastVisited</span>          <span class="terminal__comment">&larr; epoch ms</span>
+<span class="terminal__dim">  │</span>  <span class="terminal__type">string</span> <span class="terminal__field">title</span>                <span class="terminal__comment">&larr; display name</span>
+<span class="terminal__dim">  │</span>  <span class="terminal__type">int64</span>  <span class="terminal__field">datetimeCreated</span>      <span class="terminal__version">(v&ge;223)</span>
+<span class="terminal__dim">  │</span>  <span class="terminal__type">string</span> <span class="terminal__field">location</span>             <span class="terminal__version">(v&ge;223)</span> <span class="terminal__comment">&larr; town name</span>
+<span class="terminal__dim">  │</span>  <span class="terminal__type">int32</span>  <span class="terminal__field">nRespawn</span>
+<span class="terminal__dim">  └──</span> <span class="terminal__dim">&boxur;&boxh;</span> <span class="terminal__type">string</span> <span class="terminal__field">respawnName[]</span>   <span class="terminal__comment">&larr; players respawning here</span></code></pre>
+
+      <p>Coordinates are <strong>world tiles</strong>, not cells. To convert: <code>cell = floor(tile / 256)</code>. Width and height define how many tiles the safehouse covers.</p>
+
+      <div class="page-callout">
+        <strong>How we know this</strong> &mdash; Decompiled from <code>projectzomboid.jar</code> using <a href="https://github.com/leibnitz27/cfr" target="_blank" rel="noopener">CFR</a>. Key classes: <code>IsoMetaGrid.load()</code>, <code>SafeHouse.load()</code>, <code>GameWindow$StringUTF</code>. The file uses Java&rsquo;s <code>ByteBuffer</code> &mdash; big-endian, no alignment padding.
+      </div>
+    </article>
+
+    <article class="page-section fade-in" style="--delay: 5">
+      <h2><span class="section-num">06</span> CLI Script</h2>
       <p>Prefer the command line? <code>pzcc.sh</code> runs the cleanup directly on your server &mdash; no browser needed.</p>
 
       <p><a href="pzcc.sh" download class="download-btn">Download pzcc.sh</a></p>
@@ -184,7 +269,7 @@
       <p>Select cells in the <a href="index.html">map tool</a>, then click <strong>Copy cell coords</strong> to get a ready-to-paste command.</p>
     </article>
 
-    <footer class="page-section fade-in" style="--delay: 5; text-align: center; opacity: 0.6; font-size: 0.85rem;">
+    <footer class="page-section fade-in" style="--delay: 6; text-align: center; opacity: 0.6; font-size: 0.85rem;">
       <p>Inspired by <a href="https://hdrcade-tylerfreeman.github.io/pz-b42-map-cleaner/" target="_blank" rel="noopener">pz-b42-map-cleaner</a> by Tyler Freeman.</p>
     </footer>
 
