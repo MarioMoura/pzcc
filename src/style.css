@@ -153,6 +153,9 @@ section {
   line-height: 1.6;
   letter-spacing: 0.01em;
 }
+.hint--warn {
+  color: #e9a545;
+}
 
 button {
   padding: 7px 12px;

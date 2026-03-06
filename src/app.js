@@ -840,13 +840,7 @@
   });
 
   // --- Load save directory ---
-  // Uses showDirectoryPicker when available (Chromium), falls back to
-  // a file input selecting the chunkdata/ subfolder directly (all browsers).
-  var dirInput = document.createElement('input');
-  dirInput.type = 'file';
-  dirInput.webkitdirectory = true;
-  dirInput.style.display = 'none';
-  document.body.appendChild(dirInput);
+  // Requires File System Access API (Chromium-based browsers only).
 
   function applyPopulatedCells() {
     var msg = populatedCells.size + ' populated cells';
@@ -934,37 +928,15 @@
     updateDeleteButton();
   }
 
-  dirInput.addEventListener('change', function () {
-    if (!dirInput.files || dirInput.files.length === 0) return;
-    populatedCells.clear();
-    var pattern = /^chunkdata_(-?\d+)_(-?\d+)\.bin$/;
-    for (var i = 0; i < dirInput.files.length; i++) {
-      var match = dirInput.files[i].name.match(pattern);
-      if (match) {
-        populatedCells.add(cellKey(parseInt(match[1]), parseInt(match[2])));
-      }
-    }
-    if (populatedCells.size === 0) {
-      loadSaveStatus.textContent = 'No chunkdata files found — select the chunkdata/ folder';
-      return;
-    }
-    applyPopulatedCells();
-    dirInput.value = '';
-  });
-
   btnLoadSave.addEventListener('click', async function () {
-    if (window.showDirectoryPicker) {
-      try {
-        await loadViaDirectoryPicker();
-        return;
-      } catch (e) {
-        // User cancelled or API not available — fall through to file input
-        if (e.name !== 'AbortError') {
-          console.warn('showDirectoryPicker failed, falling back to file input:', e);
-        }
+    try {
+      await loadViaDirectoryPicker();
+    } catch (e) {
+      if (e.name !== 'AbortError') {
+        console.warn('showDirectoryPicker failed:', e);
+        loadSaveStatus.textContent = 'Failed to open directory picker';
       }
     }
-    dirInput.click();
   });
 
   // --- Delete purged cells ---
@@ -1187,11 +1159,9 @@
     loadSaveHint.appendChild(strong1);
     loadSaveHint.appendChild(document.createTextNode(' to enable scanning and direct deletion'));
   } else {
-    loadSaveHint.textContent = 'Select the ';
-    var strong2 = document.createElement('strong');
-    strong2.textContent = 'chunkdata/';
-    loadSaveHint.appendChild(strong2);
-    loadSaveHint.appendChild(document.createTextNode(' folder inside your save directory'));
+    btnLoadSave.disabled = true;
+    loadSaveHint.textContent = 'Requires a Chromium-based browser (Chrome, Edge, Brave)';
+    loadSaveHint.classList.add('hint--warn');
   }
 
   window.addEventListener('resize', resizeCanvas);
