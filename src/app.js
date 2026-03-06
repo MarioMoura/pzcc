@@ -24,6 +24,7 @@
   const camera = { x: WORLD_MAX_X / 2, y: WORLD_MAX_Y / 2, zoom: 0.06 };
   const selections = { keep: new Set(), purge: new Set() };
   const populatedCells = new Set();
+  const populatedChunks = new Set(); // chunk-level granularity from map/ scan
   let activeMode = 'keep'; // 'keep' or 'purge'
   let saveDirHandle = null; // Set when loaded via showDirectoryPicker with readwrite
 
@@ -141,9 +142,41 @@
   }
 
   function drawPopulated() {
-    for (const key of populatedCells) {
-      const { cx, cy } = parseCellKey(key);
-      drawCellOverlay(cx, cy, 'rgba(255, 193, 7, 0.2)', 'rgba(255, 193, 7, 0.5)');
+    if (populatedChunks.size > 0) {
+      var chunkScreenSize = CHUNK_SIZE * camera.zoom;
+      ctx.fillStyle = 'rgba(255, 193, 7, 0.2)';
+
+      if (chunkScreenSize < 3) {
+        // Zoomed out: draw at cell level from populatedCells for performance
+        for (var ckey of populatedCells) {
+          var cp = parseCellKey(ckey);
+          drawCellOverlay(cp.cx, cp.cy, 'rgba(255, 193, 7, 0.2)', 'rgba(255, 193, 7, 0.5)');
+        }
+      } else {
+        // Zoomed in: draw individual chunks
+        var screenTL = screenToWorld(0, 0);
+        var screenBR = screenToWorld(canvas.width, canvas.height);
+        var minChX = Math.floor(screenTL.x / CHUNK_SIZE);
+        var maxChX = Math.ceil(screenBR.x / CHUNK_SIZE);
+        var minChY = Math.floor(screenTL.y / CHUNK_SIZE);
+        var maxChY = Math.ceil(screenBR.y / CHUNK_SIZE);
+
+        for (var key of populatedChunks) {
+          var sep = key.indexOf(',');
+          var chx = parseInt(key.substring(0, sep));
+          var chy = parseInt(key.substring(sep + 1));
+          if (chx < minChX || chx > maxChX || chy < minChY || chy > maxChY) continue;
+          var tl = worldToScreen(chx * CHUNK_SIZE, chy * CHUNK_SIZE);
+          var br = worldToScreen((chx + 1) * CHUNK_SIZE, (chy + 1) * CHUNK_SIZE);
+          ctx.fillRect(tl.x, tl.y, br.x - tl.x, br.y - tl.y);
+        }
+      }
+    } else {
+      // Cell-level fallback (file input path)
+      for (const key of populatedCells) {
+        const { cx, cy } = parseCellKey(key);
+        drawCellOverlay(cx, cy, 'rgba(255, 193, 7, 0.2)', 'rgba(255, 193, 7, 0.5)');
+      }
     }
   }
 
@@ -816,8 +849,11 @@
   document.body.appendChild(dirInput);
 
   function applyPopulatedCells() {
-    loadSaveStatus.textContent = populatedCells.size + ' populated cells found';
-    setStatus('Loaded ' + populatedCells.size + ' populated cells from save');
+    var msg = populatedCells.size + ' populated cells';
+    if (populatedChunks.size > 0) msg += ' (' + populatedChunks.size + ' chunks)';
+    msg += ' found';
+    loadSaveStatus.textContent = msg;
+    setStatus('Loaded ' + msg + ' from save');
     chkLegend.checked = true;
     mapLegend.hidden = false;
     render();
@@ -837,8 +873,10 @@
 
     saveDirHandle = dirHandle;
     populatedCells.clear();
+    populatedChunks.clear();
     var pattern = /^chunkdata_(-?\d+)_(-?\d+)\.bin$/;
 
+    // Scan chunkdata/ for cell-level data
     for await (var entry of chunkdataHandle.values()) {
       if (entry.kind !== 'file') continue;
       var match = entry.name.match(pattern);
@@ -846,6 +884,30 @@
         populatedCells.add(cellKey(parseInt(match[1]), parseInt(match[2])));
       }
     }
+
+    // Scan map/ for chunk-level granularity
+    setStatus('Scanning map chunks...');
+    try {
+      var mapHandle = await dirHandle.getDirectoryHandle('map');
+      for await (var chxDir of mapHandle.values()) {
+        if (chxDir.kind !== 'directory') continue;
+        var chx = parseInt(chxDir.name);
+        if (isNaN(chx)) continue;
+        for await (var chyFile of chxDir.values()) {
+          if (chyFile.kind !== 'file') continue;
+          var chyMatch = chyFile.name.match(/^(-?\d+)\.bin$/);
+          if (chyMatch) {
+            var chy = parseInt(chyMatch[1]);
+            populatedChunks.add(chx + ',' + chy);
+            // Also mark the parent cell as populated
+            populatedCells.add(cellKey(Math.floor(chx / CHUNKS_PER_CELL), Math.floor(chy / CHUNKS_PER_CELL)));
+          }
+        }
+      }
+    } catch (e) {
+      // map/ directory doesn't exist, chunk view not available
+    }
+
     applyPopulatedCells();
     updateDeleteButton();
   }
@@ -935,6 +997,12 @@
       var key = cellKey(cx, cy);
       populatedCells.delete(key);
       selections.purge.delete(key);
+      // Remove chunk entries for this cell
+      for (var rchx = chxStart; rchx < chxStart + CHUNKS_PER_CELL; rchx++) {
+        for (var rchy = chyStart; rchy < chyStart + CHUNKS_PER_CELL; rchy++) {
+          populatedChunks.delete(rchx + ',' + rchy);
+        }
+      }
     }
 
     updateDeleteButton();
