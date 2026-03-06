@@ -90,6 +90,21 @@
     return cx + ',' + cy;
   }
 
+  function getSafehouseCellKeys() {
+    var keys = new Set();
+    if (!mapMeta) return keys;
+    for (var sh of mapMeta.safehouses) {
+      var c1 = tileToCell(sh.x, sh.y);
+      var c2 = tileToCell(sh.x + sh.w - 1, sh.y + sh.h - 1);
+      for (var cx = c1.cx; cx <= c2.cx; cx++) {
+        for (var cy = c1.cy; cy <= c2.cy; cy++) {
+          keys.add(cellKey(cx, cy));
+        }
+      }
+    }
+    return keys;
+  }
+
   function parseCellKey(key) {
     const parts = key.split(',');
     return { cx: parseInt(parts[0]), cy: parseInt(parts[1]) };
@@ -462,17 +477,21 @@
 
       const target = selections[selectionType];
       const opposite = selectionType === 'keep' ? selections.purge : selections.keep;
+      const lockSH = selectionType === 'purge' && document.getElementById('chk-lock-safehouses').checked;
+      const lockedKeys = lockSH ? getSafehouseCellKeys() : null;
+      let skipped = 0;
 
       for (let cx = minCX; cx <= maxCX; cx++) {
         for (let cy = minCY; cy <= maxCY; cy++) {
           const key = cellKey(cx, cy);
+          if (lockedKeys && lockedKeys.has(key)) { skipped++; continue; }
           target.add(key);
           opposite.delete(key); // Remove from opposite set
         }
       }
 
-      const count = (maxCX - minCX + 1) * (maxCY - minCY + 1);
-      setStatus('Selected ' + count + ' cells as ' + selectionType.toUpperCase());
+      const count = (maxCX - minCX + 1) * (maxCY - minCY + 1) - skipped;
+      setStatus('Selected ' + count + ' cells as ' + selectionType.toUpperCase() + (skipped ? ' (' + skipped + ' safehouse cells locked)' : ''));
       updateSelectionBar();
     }
 
@@ -579,16 +598,18 @@
     updateSelectionBar();
   });
   document.getElementById('btn-purge-all').addEventListener('click', function () {
+    const lockSH = document.getElementById('chk-lock-safehouses').checked;
+    const lockedKeys = lockSH ? getSafehouseCellKeys() : null;
     for (let cx = 0; cx < CELLS_X; cx++) {
       for (let cy = 0; cy < CELLS_Y; cy++) {
         const key = cellKey(cx, cy);
-        if (!selections.keep.has(key)) {
+        if (!selections.keep.has(key) && !(lockedKeys && lockedKeys.has(key))) {
           selections.purge.add(key);
         }
       }
     }
     render();
-    setStatus('Marked ' + selections.purge.size + ' cells as purge');
+    setStatus('Marked ' + selections.purge.size + ' cells as purge' + (lockedKeys ? ' (' + lockedKeys.size + ' safehouse cells locked)' : ''));
     updateSelectionBar();
   });
 
