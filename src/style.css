@@ -424,6 +424,17 @@ label:not(.checkbox-label) {
   flex-shrink: 0;
 }
 
+.disclaimer {
+  font-size: 0.65rem;
+  color: #5a6a7a;
+  text-align: center;
+  padding: 8px 10px;
+  margin-top: 6px;
+  border: 1px solid rgba(233, 69, 96, 0.15);
+  border-left: 2px solid rgba(233, 69, 96, 0.4);
+  line-height: 1.5;
+}
+
 /* --- Footer elements --- */
 
 #status-bar {
