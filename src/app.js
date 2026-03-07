@@ -204,6 +204,7 @@
     var chkSH = document.getElementById('chk-safehouses');
     var chkNPVP = document.getElementById('chk-npvp-zones');
     var chkDZ = document.getElementById('chk-desig-zones');
+    var chkST = document.getElementById('chk-stashes');
 
     // Safehouses — blue
     if (chkSH && chkSH.checked) {
@@ -269,6 +270,64 @@
           ctx.textBaseline = 'middle';
           ctx.fillStyle = 'rgba(255, 160, 50, 0.85)';
           ctx.fillText(d.type || d.name || '', tl.x + sw / 2, tl.y + sH / 2, sw - 6);
+        }
+      }
+    }
+
+    // Stashes — three categories with distinct colors
+    if (chkST && chkST.checked) {
+      // Build list: [{ name, x, y, status }]
+      var stashMarkers = [];
+      // Spawned — alreadyReadMap names resolved via STASH_DEFS lookup
+      for (var i = 0; i < mapMeta.stashes.mapsRead.length; i++) {
+        var name = mapMeta.stashes.mapsRead[i];
+        var def = typeof STASH_DEFS !== 'undefined' && STASH_DEFS[name];
+        if (def) stashMarkers.push({ name: name, x: def[0], y: def[1], status: 'spawned' });
+      }
+      // Pending — map read, loot not yet spawned
+      for (var i = 0; i < mapMeta.stashes.buildingsToDo.length; i++) {
+        var st = mapMeta.stashes.buildingsToDo[i];
+        stashMarkers.push({ name: st.name, x: st.x, y: st.y, status: 'pending' });
+      }
+      // Available — not yet discovered
+      for (var i = 0; i < mapMeta.stashes.possible.length; i++) {
+        var st = mapMeta.stashes.possible[i];
+        stashMarkers.push({ name: st.name, x: st.x, y: st.y, status: 'available' });
+      }
+
+      for (var i = 0; i < stashMarkers.length; i++) {
+        var sm = stashMarkers[i];
+        var pt = worldToScreen(sm.x, sm.y);
+        var size = Math.max(3, Math.min(6, camera.zoom * 80));
+        if (size < 2) continue;
+        var fill, stroke;
+        if (sm.status === 'spawned') {
+          fill = 'rgba(200, 220, 50, 0.7)'; stroke = 'rgba(200, 220, 50, 1.0)';
+        } else if (sm.status === 'pending') {
+          fill = 'rgba(255, 180, 50, 0.6)'; stroke = 'rgba(255, 180, 50, 0.9)';
+        } else {
+          fill = 'rgba(200, 220, 50, 0.2)'; stroke = 'rgba(200, 220, 50, 0.4)';
+        }
+        ctx.fillStyle = fill;
+        ctx.strokeStyle = stroke;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(pt.x, pt.y - size);
+        ctx.lineTo(pt.x + size, pt.y);
+        ctx.lineTo(pt.x, pt.y + size);
+        ctx.lineTo(pt.x - size, pt.y);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        if (size > 5 && sm.name) {
+          var labelW = camera.zoom * sm.name.length * 6;
+          if (labelW > 40) {
+            ctx.font = 'bold 10px monospace';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'middle';
+            ctx.fillStyle = stroke;
+            ctx.fillText(sm.name, pt.x + size + 4, pt.y);
+          }
         }
       }
     }
@@ -1075,7 +1134,7 @@
     }
 
     // Stash System — try to read, but tolerate EOF
-    var stashes = { possible: 0, buildingsToDo: 0, mapsRead: 0 };
+    var stashes = { possible: [], buildingsToDo: [], mapsRead: [] };
     var uniqueRDS = 0;
     try {
       // Multiplayer saves may have an extra int32 position here — detect by trying
@@ -1085,21 +1144,23 @@
         // Likely the MP skip int32 — re-read
         nPossible = dv.getInt32(off); off += 4;
       }
-      stashes.possible = nPossible;
       for (var i = 0; i < nPossible; i++) {
         var s = readString(dv, off); off = s.newOffset;
-        off += 8; // buildingX + buildingY
+        var bx = dv.getInt32(off); off += 4;
+        var by = dv.getInt32(off); off += 4;
+        stashes.possible.push({ name: s.value, x: bx, y: by });
       }
       var nBuildingsToDo = dv.getInt32(off); off += 4;
-      stashes.buildingsToDo = nBuildingsToDo;
       for (var i = 0; i < nBuildingsToDo; i++) {
         var s = readString(dv, off); off = s.newOffset;
-        off += 8;
+        var bx = dv.getInt32(off); off += 4;
+        var by = dv.getInt32(off); off += 4;
+        stashes.buildingsToDo.push({ name: s.value, x: bx, y: by });
       }
       var nMapsRead = dv.getInt32(off); off += 4;
-      stashes.mapsRead = nMapsRead;
       for (var i = 0; i < nMapsRead; i++) {
         var s = readString(dv, off); off = s.newOffset;
+        stashes.mapsRead.push(s.value);
       }
 
       // Unique RDS
@@ -1374,7 +1435,7 @@
     }
 
     // Stash summary
-    if (mapMeta.stashes.possible > 0 || mapMeta.stashes.buildingsToDo > 0 || mapMeta.stashes.mapsRead > 0) {
+    if (mapMeta.stashes.possible.length > 0 || mapMeta.stashes.buildingsToDo.length > 0 || mapMeta.stashes.mapsRead.length > 0) {
       var group = document.createElement('div');
       group.className = 'world-data-group';
       var label = document.createElement('span');
@@ -1383,7 +1444,7 @@
       group.appendChild(label);
       var entry = document.createElement('div');
       entry.className = 'world-data-entry';
-      entry.textContent = mapMeta.stashes.possible + ' possible \u00b7 ' + mapMeta.stashes.buildingsToDo + ' buildings \u00b7 ' + mapMeta.stashes.mapsRead + ' maps read';
+      entry.textContent = mapMeta.stashes.mapsRead.length + ' spawned \u00b7 ' + mapMeta.stashes.buildingsToDo.length + ' pending \u00b7 ' + mapMeta.stashes.possible.length + ' available';
       group.appendChild(entry);
       summary.appendChild(group);
     }
@@ -1391,7 +1452,7 @@
 
   // Wire up world data checkboxes
   document.addEventListener('change', function (e) {
-    if (e.target.id === 'chk-safehouses' || e.target.id === 'chk-npvp-zones' || e.target.id === 'chk-desig-zones') {
+    if (e.target.id === 'chk-safehouses' || e.target.id === 'chk-npvp-zones' || e.target.id === 'chk-desig-zones' || e.target.id === 'chk-stashes') {
       render();
     }
   });

@@ -90,6 +90,9 @@
       <label class="checkbox-label">
         <input type="checkbox" id="chk-desig-zones" checked> Designation zones
       </label>
+      <label class="checkbox-label">
+        <input type="checkbox" id="chk-stashes" checked> Stashes
+      </label>
       <div id="world-data-summary"></div>
     </section>
 
@@ -121,6 +124,9 @@
       <div class="legend-item"><span class="swatch safehouse"></span> Safehouse</div>
       <div class="legend-item"><span class="swatch nonpvp"></span> Non-PvP zone</div>
       <div class="legend-item"><span class="swatch designation"></span> Designation zone</div>
+      <div class="legend-item"><span class="swatch stash-spawned"></span> Stash (spawned)</div>
+      <div class="legend-item"><span class="swatch stash-pending"></span> Stash (pending)</div>
+      <div class="legend-item"><span class="swatch stash-available"></span> Stash (available)</div>
     </section>
 
     <div id="status-bar"></div>
@@ -145,6 +151,9 @@
       <div class="map-legend-item"><span class="swatch safehouse"></span> Safehouse</div>
       <div class="map-legend-item"><span class="swatch nonpvp"></span> Non-PvP</div>
       <div class="map-legend-item"><span class="swatch designation"></span> Designation</div>
+      <div class="map-legend-item"><span class="swatch stash-spawned"></span> Stash (spawned)</div>
+      <div class="map-legend-item"><span class="swatch stash-pending"></span> Stash (pending)</div>
+      <div class="map-legend-item"><span class="swatch stash-available"></span> Stash (available)</div>
     </div>
   </main>
 
@@ -173,6 +182,7 @@
     </div>
   </div>
 
+  <script src="stash_defs.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
