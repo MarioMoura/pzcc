@@ -63,6 +63,30 @@
   const mapLegend = document.getElementById('map-legend');
   const btnDeletePurged = document.getElementById('btn-delete-purged');
 
+  // --- Map legend layer toggles ---
+  var layerVisible = {};
+  mapLegend.addEventListener('click', function (e) {
+    var item = e.target.closest('.map-legend-item[data-layer]');
+    if (!item) return;
+    var layer = item.dataset.layer;
+    var isOff = item.classList.toggle('off');
+    layerVisible[layer] = !isOff;
+    // Sync sidebar checkboxes for world data layers
+    var chkMap = {
+      'safehouses': 'chk-safehouses',
+      'npvp-zones': 'chk-npvp-zones',
+      'desig-zones': 'chk-desig-zones',
+    };
+    if (chkMap[layer]) {
+      var chk = document.getElementById(chkMap[layer]);
+      if (chk) chk.checked = !isOff;
+    }
+    render();
+  });
+  function isLayerVisible(layer) {
+    return layerVisible[layer] !== false;
+  }
+
   // --- Coordinate transforms ---
   function worldToScreen(wx, wy) {
     const cx = canvas.width / 2;
@@ -141,7 +165,7 @@
     }
 
     // Draw populated cells (under selections)
-    drawPopulated();
+    if (isLayerVisible('populated')) drawPopulated();
 
     // Draw map_meta overlays (under selections)
     drawMapMetaOverlays();
@@ -201,13 +225,8 @@
 
   function drawMapMetaOverlays() {
     if (!mapMeta) return;
-    var chkSH = document.getElementById('chk-safehouses');
-    var chkNPVP = document.getElementById('chk-npvp-zones');
-    var chkDZ = document.getElementById('chk-desig-zones');
-    var chkST = document.getElementById('chk-stashes');
-
     // Safehouses — blue
-    if (chkSH && chkSH.checked) {
+    if (isLayerVisible('safehouses')) {
       for (var i = 0; i < mapMeta.safehouses.length; i++) {
         var sh = mapMeta.safehouses[i];
         var tl = worldToScreen(sh.x, sh.y);
@@ -234,7 +253,7 @@
     }
 
     // Non-PvP zones — green
-    if (chkNPVP && chkNPVP.checked) {
+    if (isLayerVisible('npvp-zones')) {
       for (var i = 0; i < mapMeta.nonPvpZones.length; i++) {
         var z = mapMeta.nonPvpZones[i];
         var tl = worldToScreen(z.x, z.y);
@@ -251,7 +270,7 @@
     }
 
     // Designation zones — orange
-    if (chkDZ && chkDZ.checked) {
+    if (isLayerVisible('desig-zones')) {
       for (var i = 0; i < mapMeta.designationZones.length; i++) {
         var d = mapMeta.designationZones[i];
         var tl = worldToScreen(d.x, d.y);
@@ -274,73 +293,76 @@
       }
     }
 
-    // Stashes — three categories with distinct colors
-    if (chkST && chkST.checked) {
-      // Build list: [{ name, x, y, status }]
-      var stashMarkers = [];
-      // Spawned — alreadyReadMap names resolved via STASH_DEFS lookup
+    // Stashes — three individually toggleable categories
+    var stashMarkers = [];
+    if (isLayerVisible('stash-spawned')) {
       for (var i = 0; i < mapMeta.stashes.mapsRead.length; i++) {
         var name = mapMeta.stashes.mapsRead[i];
         var def = typeof STASH_DEFS !== 'undefined' && STASH_DEFS[name];
         if (def) stashMarkers.push({ name: name, x: def[0], y: def[1], status: 'spawned' });
       }
-      // Pending — map read, loot not yet spawned
+    }
+    if (isLayerVisible('stash-pending')) {
       for (var i = 0; i < mapMeta.stashes.buildingsToDo.length; i++) {
         var st = mapMeta.stashes.buildingsToDo[i];
         stashMarkers.push({ name: st.name, x: st.x, y: st.y, status: 'pending' });
       }
-      // Available — not yet discovered
+    }
+    if (isLayerVisible('stash-available')) {
       for (var i = 0; i < mapMeta.stashes.possible.length; i++) {
         var st = mapMeta.stashes.possible[i];
         stashMarkers.push({ name: st.name, x: st.x, y: st.y, status: 'available' });
       }
-
-      for (var i = 0; i < stashMarkers.length; i++) {
-        var sm = stashMarkers[i];
-        var pt = worldToScreen(sm.x, sm.y);
-        var size = Math.max(3, Math.min(6, camera.zoom * 80));
-        if (size < 2) continue;
-        var fill, stroke;
-        if (sm.status === 'spawned') {
-          fill = 'rgba(200, 220, 50, 0.7)'; stroke = 'rgba(200, 220, 50, 1.0)';
-        } else if (sm.status === 'pending') {
-          fill = 'rgba(255, 180, 50, 0.6)'; stroke = 'rgba(255, 180, 50, 0.9)';
-        } else {
-          fill = 'rgba(200, 220, 50, 0.2)'; stroke = 'rgba(200, 220, 50, 0.4)';
-        }
-        ctx.fillStyle = fill;
-        ctx.strokeStyle = stroke;
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        ctx.moveTo(pt.x, pt.y - size);
-        ctx.lineTo(pt.x + size, pt.y);
-        ctx.lineTo(pt.x, pt.y + size);
-        ctx.lineTo(pt.x - size, pt.y);
-        ctx.closePath();
-        ctx.fill();
-        ctx.stroke();
-        if (size > 5 && sm.name) {
-          var labelW = camera.zoom * sm.name.length * 6;
-          if (labelW > 40) {
-            ctx.font = 'bold 10px monospace';
-            ctx.textAlign = 'left';
-            ctx.textBaseline = 'middle';
-            ctx.fillStyle = stroke;
-            ctx.fillText(sm.name, pt.x + size + 4, pt.y);
-          }
+    }
+    for (var i = 0; i < stashMarkers.length; i++) {
+      var sm = stashMarkers[i];
+      var pt = worldToScreen(sm.x, sm.y);
+      var size = Math.max(3, Math.min(6, camera.zoom * 80));
+      if (size < 2) continue;
+      var fill, stroke;
+      if (sm.status === 'spawned') {
+        fill = 'rgba(200, 220, 50, 0.7)'; stroke = 'rgba(200, 220, 50, 1.0)';
+      } else if (sm.status === 'pending') {
+        fill = 'rgba(255, 180, 50, 0.6)'; stroke = 'rgba(255, 180, 50, 0.9)';
+      } else {
+        fill = 'rgba(200, 220, 50, 0.2)'; stroke = 'rgba(200, 220, 50, 0.4)';
+      }
+      ctx.fillStyle = fill;
+      ctx.strokeStyle = stroke;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(pt.x, pt.y - size);
+      ctx.lineTo(pt.x + size, pt.y);
+      ctx.lineTo(pt.x, pt.y + size);
+      ctx.lineTo(pt.x - size, pt.y);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      if (size > 5 && sm.name) {
+        var labelW = camera.zoom * sm.name.length * 6;
+        if (labelW > 40) {
+          ctx.font = 'bold 10px monospace';
+          ctx.textAlign = 'left';
+          ctx.textBaseline = 'middle';
+          ctx.fillStyle = stroke;
+          ctx.fillText(sm.name, pt.x + size + 4, pt.y);
         }
       }
     }
   }
 
   function drawSelections() {
-    for (const key of selections.keep) {
-      const { cx, cy } = parseCellKey(key);
-      drawCellOverlay(cx, cy, 'rgba(76, 175, 80, 0.3)', 'rgba(76, 175, 80, 0.7)');
+    if (isLayerVisible('keep')) {
+      for (const key of selections.keep) {
+        const { cx, cy } = parseCellKey(key);
+        drawCellOverlay(cx, cy, 'rgba(76, 175, 80, 0.3)', 'rgba(76, 175, 80, 0.7)');
+      }
     }
-    for (const key of selections.purge) {
-      const { cx, cy } = parseCellKey(key);
-      drawCellOverlay(cx, cy, 'rgba(233, 69, 96, 0.3)', 'rgba(233, 69, 96, 0.7)');
+    if (isLayerVisible('purge')) {
+      for (const key of selections.purge) {
+        const { cx, cy } = parseCellKey(key);
+        drawCellOverlay(cx, cy, 'rgba(233, 69, 96, 0.3)', 'rgba(233, 69, 96, 0.7)');
+      }
     }
   }
 
@@ -1450,11 +1472,23 @@
     }
   }
 
-  // Wire up world data checkboxes
+  // Wire up world data checkboxes — sync legend items
+  var chkToLayer = {
+    'chk-safehouses': 'safehouses',
+    'chk-npvp-zones': 'npvp-zones',
+    'chk-desig-zones': 'desig-zones',
+    'chk-stashes': ['stash-spawned', 'stash-pending', 'stash-available'],
+  };
   document.addEventListener('change', function (e) {
-    if (e.target.id === 'chk-safehouses' || e.target.id === 'chk-npvp-zones' || e.target.id === 'chk-desig-zones' || e.target.id === 'chk-stashes') {
-      render();
+    var layers = chkToLayer[e.target.id];
+    if (!layers) return;
+    if (!Array.isArray(layers)) layers = [layers];
+    for (var i = 0; i < layers.length; i++) {
+      layerVisible[layers[i]] = e.target.checked;
+      var legendItem = mapLegend.querySelector('[data-layer="' + layers[i] + '"]');
+      if (legendItem) legendItem.classList.toggle('off', !e.target.checked);
     }
+    render();
   });
 
   // --- Legend toggle ---

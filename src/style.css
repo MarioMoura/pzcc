@@ -520,12 +520,15 @@ label:not(.checkbox-label) {
   border-left: 3px solid #e94560;
   padding: 10px 14px;
   z-index: 10;
-  pointer-events: none;
+  pointer-events: auto;
   transition: opacity 0.2s ease-out;
+  display: grid;
+  grid-template-columns: auto auto;
+  column-gap: 16px;
 }
 
 #map-legend[hidden] {
-  display: none;
+  display: none !important;
 }
 
 .map-legend-item {
@@ -534,11 +537,27 @@ label:not(.checkbox-label) {
   gap: 8px;
   font-family: 'Chakra Petch', system-ui, sans-serif;
   font-size: 0.72rem;
+  cursor: pointer;
+  user-select: none;
+  transition: opacity 0.15s;
   font-weight: 600;
   letter-spacing: 0.02em;
   color: #8898aa;
   text-transform: uppercase;
   padding: 2px 0;
+}
+
+.map-legend-item:hover {
+  color: #c0c8d2;
+}
+
+.map-legend-item.off {
+  opacity: 0.35;
+}
+
+.map-legend-item.off .swatch {
+  background: rgba(60, 70, 90, 0.3);
+  border-color: rgba(60, 70, 90, 0.5);
 }
 
 .map-legend-item .swatch {
