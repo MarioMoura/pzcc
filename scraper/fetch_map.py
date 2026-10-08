@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Fetch the full-resolution top-down map from b42map.com and stitch it into a single image.
+Fetch the full-resolution top-down map from pzmap.org (formerly b42map.com) and stitch it into a single image.
 
 Usage:
     python fetch_map.py [options]
@@ -28,12 +28,24 @@ except ImportError:
     sys.exit(1)
 
 
-BASE_URL = "https://b42map.com/map_data/base_top"
+BASE_URL = "https://tiles.pzmap.org/42.20.0/base_top"
 USER_AGENT = "pzcc-map-scraper/1.0"
+HEADERS = {}
 
 
 def fetch_url(url):
-    req = Request(url, headers={"User-Agent": USER_AGENT})
+    headers = {"User-Agent": USER_AGENT, **HEADERS}
+    try:
+        # pzmap.org sits behind a Cloudflare challenge that also checks the TLS
+        # fingerprint; curl_cffi can impersonate a real browser (pip install curl_cffi)
+        from curl_cffi import requests as cffi_requests
+        resp = cffi_requests.get(url, headers=headers, impersonate="firefox135", timeout=30)
+        if resp.status_code != 200:
+            raise RuntimeError(f"HTTP {resp.status_code} for {url}")
+        return resp.content
+    except ImportError:
+        pass
+    req = Request(url, headers=headers)
     with urlopen(req, timeout=30) as resp:
         return resp.read()
 
@@ -120,7 +132,8 @@ def stitch_tiles(tile_dir, fmt, cols, rows, tile_size, output_path, quality):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Fetch PZ B42 top-down map from b42map.com")
+    global BASE_URL, USER_AGENT
+    parser = argparse.ArgumentParser(description="Fetch PZ B42 top-down map from pzmap.org")
     parser.add_argument("-o", "--output", default="../src/map.jpg",
                         help="Output image path (default: ../map.jpg)")
     parser.add_argument("-q", "--quality", type=int, default=95,
@@ -131,7 +144,20 @@ def main():
                         help="Directory for cached tiles (default: /tmp/pz_tiles)")
     parser.add_argument("--level", type=int, default=None,
                         help="DZI level to fetch (default: highest available)")
+    parser.add_argument("--base-url", default=BASE_URL,
+                        help=f"Map data base URL (default: {BASE_URL})")
+    parser.add_argument("--cookie", default=os.environ.get("PZMAP_COOKIE", ""),
+                        help="Cookie header to send (e.g. 'cf_clearance=...'); the site sits behind a Cloudflare "
+                             "challenge, copy it from a browser session. Also read from $PZMAP_COOKIE")
+    parser.add_argument("--user-agent", default=os.environ.get("PZMAP_UA", ""),
+                        help="User-Agent to send (must match the browser the cookie came from). Also $PZMAP_UA")
     args = parser.parse_args()
+
+    BASE_URL = args.base_url.rstrip("/")
+    if args.user_agent:
+        USER_AGENT = args.user_agent
+    if args.cookie:
+        HEADERS["Cookie"] = args.cookie
 
     # Resolve relative output path
     if not os.path.isabs(args.output):
